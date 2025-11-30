@@ -8,7 +8,7 @@ const ALL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 // Construction des poids
 const WEIGHTS: Record<string, number> = {};
 for (const l of ALL) {
-  WEIGHTS[l] = RARE.includes(l) ? 1 : 2;
+  WEIGHTS[l] = RARE.includes(l) ? 1 : 4;
 }
 
 // Pool pondéré
