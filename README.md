@@ -1,73 +1,49 @@
-# React + TypeScript + Vite
+# Jeu de Lettres — Prototype
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A French word game. A random draw of 4 letters is revealed; the player proposes a French word and earns points based on how well it incorporates the drawn letters.
 
-Currently, two official plugins are available:
+## Scoring
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+score = (used letters × 3) + order bonus − insertions
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+| Component | Description |
+|-----------|-------------|
+| **Used letters** | Each draw letter found in the word, ×3 (duplicates in the draw count separately) |
+| **Order bonus** | +3 if all draw letters appear in the word in the exact draw order |
+| **Insertions** | −1 for each letter between the first and last draw-letter position that is not itself a draw letter |
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Example — draw `R A M E`, word `RAME`
+4 letters used × 3 = 12, +3 order bonus, 0 insertions → **15 pts**
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Example — draw `B A N E`, word `BAIGNER`
+4 letters used × 3 = 12, +3 order (B→A→N→E in order), −2 insertions (I, G) → **13 pts**
+
+## Architecture
+
+```
+src/
+  engine/          — pure TypeScript, zero React
+    types.ts           Draw, ScoreResult, WordValidator
+    draw.ts            weighted letter pool
+    score.ts           normalizeWord, scoreWord
+    DictionaryService  Dictionary interface + Set implementation
+    mainDictionary.ts  singleton loaded from an-array-of-french-words
+    RoundService.ts    evaluateRound orchestrator
+    findBestWord.ts    brute-force best-word scan
+  App.tsx          — single React component
+```
+
+The engine and UI are fully decoupled. All React state lives in `App.tsx`; all game logic is pure functions in `engine/`.
+
+After each submission the app reveals the best achievable word by scanning the entire French dictionary (~336k words) with the scoring engine.
+
+## Development
+
+```bash
+npm install
+npm run dev      # localhost dev server
+npm run test     # unit tests (Vitest)
+npm run build    # production build
 ```
