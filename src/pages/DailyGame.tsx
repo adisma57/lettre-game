@@ -74,9 +74,15 @@ export default function DailyGame() {
 
       {/* Retry button */}
       {phase.kind === "attempt_shown" && attempts.length < 3 && (
-        <Button variant="secondary" onClick={retryRound}>
-          Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
-        </Button>
+        <div className="flex flex-col items-start gap-3">
+          <Button variant="secondary" onClick={retryRound}>
+            Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
+          </Button>
+          <p className="text-xs text-muted leading-relaxed">
+            Votre score n'est envoyé au classement qu'en fin de partie — quand vous
+            atteignez le meilleur score possible ou que vous avez utilisé vos 3 essais.
+          </p>
+        </div>
       )}
 
       {/* Completed summary */}
