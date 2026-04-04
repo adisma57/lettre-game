@@ -1,4 +1,4 @@
-# Jeu de Lettres — Prototype
+# Quadra
 
 A French word game. A random draw of 4 letters is revealed; the player proposes a French word and earns points based on how well it incorporates the drawn letters.
 
@@ -23,27 +23,51 @@ score = (used letters × 3) + order bonus − insertions
 ## Architecture
 
 ```
+server/                  — Hono API (Node.js + SQLite)
+  index.ts                 POST /api/users, GET /api/users/:name/exists
+  db.ts                    better-sqlite3, users table
+
 src/
-  engine/          — pure TypeScript, zero React
-    types.ts           Draw, ScoreResult, WordValidator
-    draw.ts            weighted letter pool
-    score.ts           normalizeWord, scoreWord
-    DictionaryService  Dictionary interface + Set implementation
-    mainDictionary.ts  singleton loaded from an-array-of-french-words
-    RoundService.ts    evaluateRound orchestrator
-    findBestWord.ts    brute-force best-word scan
-  App.tsx          — single React component
+  engine/                — pure TypeScript, zero React
+    types.ts               Draw, ScoreResult, WordValidator
+    draw.ts                weighted letter pool + daily seeded draw
+    score.ts               normalizeWord, scoreWord
+    DictionaryService.ts   Dictionary interface + Set implementation
+    mainDictionary.ts      singleton loaded from an-array-of-french-words
+    RoundService.ts        evaluateRound orchestrator
+    solver.ts              solveTopN — full dictionary scan, sorted by score
+    findBestWord.ts        thin wrapper around solveTopN(…, 1)
+  components/
+    ui/                    Button, Card, Badge
+    game/                  ColoredWord, DrawDisplay, DrawInput, WordInput, ScoreCard, SolverResults
+    layout/                Layout, NavBar
+    UsernameModal.tsx      shown on first visit to pick a username
+  hooks/
+    useAuth.ts             reads/writes auth_username from localStorage
+    useDailyGame.ts        daily game state machine
+    useTraining.ts         training round lifecycle
+  pages/                 — one file per route
+    Home.tsx, DailyGame.tsx, Training.tsx, Solver.tsx, Rules.tsx
+  services/
+    api.ts                 all network calls (createUser, usernameExists)
+    dailyState.ts          localStorage CRUD for daily game state
+  content/
+    rules.json             rules content (title, sections)
 ```
-
-The engine and UI are fully decoupled. All React state lives in `App.tsx`; all game logic is pure functions in `engine/`.
-
-After each submission the app reveals the best achievable word by scanning the entire French dictionary (~336k words) with the scoring engine.
 
 ## Development
 
 ```bash
 npm install
-npm run dev      # localhost dev server
-npm run test     # unit tests (Vitest)
-npm run build    # production build
+
+# Terminal 1 — frontend (localhost:5173)
+npm run dev
+
+# Terminal 2 — API server (localhost:3001, proxied via Vite)
+npm run server
+
+npm run test     # Vitest unit tests
+npm run build    # type-check + production bundle
 ```
+
+> The Vite dev server proxies `/api` to `localhost:3001`, so no CORS setup is needed in dev.

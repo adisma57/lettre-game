@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev       # Start dev server (Vite HMR)
+npm run dev       # Start Vite dev server (localhost:5173, HMR)
+npm run server    # Start Hono API server (localhost:3001)
 npm run build     # Type-check (tsc) then bundle (vite)
 npm run lint      # ESLint
 npm run test      # Vitest in watch mode
@@ -17,9 +18,11 @@ Run a single test file:
 npx vitest run src/engine/score.test.ts
 ```
 
+The Vite dev server proxies `/api/*` to `localhost:3001` — run both servers in dev.
+
 ## Architecture
 
-This is a French word game prototype: the player proposes a word built around a random 4-letter draw and earns points based on how well the word incorporates the drawn letters.
+**Quadra** is a French word game: the player proposes a word built around a random 4-letter draw and earns points based on how well the word incorporates the drawn letters.
 
 ### Scoring formula
 
@@ -38,7 +41,7 @@ Pure TypeScript, zero React. All game logic lives here.
 | File | Responsibility |
 |------|----------------|
 | `types.ts` | Shared types: `Draw`, `WordValidator`, `ScoreResult`, `ScorePart` |
-| `draw.ts` | Weighted letter pool; `generateDrawWeighted(count)` |
+| `draw.ts` | Weighted letter pool; `generateDrawWeighted(count)`; `getDailyDraw(date)` |
 | `score.ts` | `normalizeWord`, `scoreWord` — the full scoring pipeline |
 | `DictionaryService.ts` | `Dictionary` interface (`has` + `words`); `createSetDictionary`; `createWordValidatorFromDictionary` |
 | `mainDictionary.ts` | Singleton: loads `an-array-of-french-words`, exports `mainDictionary` and `mainValidator` |
@@ -46,19 +49,49 @@ Pure TypeScript, zero React. All game logic lives here.
 | `solver.ts` | `solveTopN(draw, dict, n): SolverResult[]` — full dictionary scan, sorted score desc then length asc |
 | `findBestWord.ts` | Thin wrapper around `solveTopN(…, 1)` |
 
-### UI layer
+### UI layer (`src/`)
 
-React Router v6 SPA. `App.tsx` is the root layout shell (NavBar + Outlet). All pages live in `src/pages/`.
+React Router v6 SPA. `App.tsx` mounts `Layout` which renders `NavBar` + `<Outlet />` + `UsernameModal` (when guest).
 
-`computeLetterRoles` (used by `ColoredWord`) assigns display roles (`ordered` / `unordered` / `insert` / `unused`) purely from `ScoreResult` fields — no engine logic is duplicated in the UI.
+#### Reusable components
 
-### Key design note — `Dictionary.words()`
+| Component | Location | Used by |
+|-----------|----------|---------|
+| `Button` | `components/ui/` | everywhere — variants: primary, secondary, ghost |
+| `Card` | `components/ui/` | Rules sections, DailyGame summary |
+| `Badge` | `components/ui/` | Rules score items |
+| `DrawDisplay` | `components/game/` | DailyGame, Training, Rules examples |
+| `DrawInput` | `components/game/` | Solver (4-tile input with internal focus management) |
+| `WordInput` | `components/game/` | DailyGame, Training |
+| `ColoredWord` | `components/game/` | DailyGame, Training — exports `ROLE_CLASS_BY_STRING` for Rules |
+| `ScoreCard` | `components/game/` | DailyGame, Training |
+| `SolverResultsList` | `components/game/` | Training top-3 (collapsible) |
+| `SolverResultsTable` | `components/game/` | Solver full table |
 
-`findBestWord.ts` iterates the full dictionary via `Dictionary.words(): Iterable<string>`. Do not bypass this by accessing the underlying `Set` directly.
+`computeLetterRoles` inside `ColoredWord` assigns display roles (`ordered` / `unordered` / `insert` / `unused`) purely from `ScoreResult` fields — no engine logic is duplicated in the UI.
 
-### Normalization
+### Auth
 
-All text comparison goes through `score.normalizeWord`: `toUpperCase()` + NFD decomposition + diacritic strip. Called on both the word and the draw in every scoring function.
+- `useAuth` reads/writes `auth_username` from `localStorage`
+- `UsernameModal` blocks the UI on first visit until the user picks a name (calls `POST /api/users`)
+- Username is passed as the `X-Username` header in future authenticated requests
+
+### Backend (`server/`)
+
+Hono on Node.js, `better-sqlite3`, ESM.
+
+| File | Responsibility |
+|------|----------------|
+| `db.ts` | Opens `server/quadra.sqlite`, WAL mode, creates `users` table |
+| `index.ts` | `POST /api/users`, `GET /api/users/:name/exists`, global JSON error handler |
+
+Username rules: 2–20 chars, `[A-Za-z0-9_-]` only, case-insensitive unique.
+
+### Key design notes
+
+- **`Dictionary.words()`** — `findBestWord.ts` iterates the full dictionary via `Dictionary.words(): Iterable<string>`. Do not bypass this by accessing the underlying `Set` directly.
+- **Normalization** — all text comparison goes through `score.normalizeWord`: `toUpperCase()` + NFD decomposition + diacritic strip. Called on both the word and the draw in every scoring function.
+- **Daily draw** — `getDailyDraw(date)` uses a seeded LCG (`mulberry32`-style), seed = `YYYYMMDD` integer. Same UTC date → same draw for all users.
 
 ### Design tokens (Tailwind v4 — `src/index.css`)
 
@@ -85,7 +118,7 @@ All text comparison goes through `score.normalizeWord`: `toUpperCase()` + NFD de
 - **Router**: React Router v6 (`createBrowserRouter` + `RouterProvider`)
 - **CSS**: Tailwind CSS v4 via `@tailwindcss/vite` — no `tailwind.config.ts`, tokens in `@theme`
 - **State**: `useState` + `useReducer` per page; `useContext` only for auth (future)
-- **Backend** (planned): Hono on Node + SQLite — username-only auth, leaderboard
+- **Backend**: Hono on Node + SQLite (`better-sqlite3`) — username-only auth, leaderboard
 
 ### Routes
 
@@ -103,82 +136,55 @@ All text comparison goes through `score.normalizeWord`: `toUpperCase()` + NFD de
 React Router v6, Tailwind v4, design tokens, `Layout` + `NavBar`, page shells.
 
 #### ✅ M2 — Rules page (DONE)
-- `src/content/rules.json` — 4 sections : objectif, score, code couleur, modes
-- `src/pages/Rules.tsx` — renderer typé, 5 sous-composants (Formula, ScoreItems, Examples, ColorLegend, GameModes)
+- `src/content/rules.json` — sections: objectif, valid-words, score, code couleur, modes
+- `src/pages/Rules.tsx` — typed renderer, 5 sub-components (Formula, ScoreItems, Examples, ColorLegend, GameModes)
 
 #### ✅ M3 — Daily draw engine + page (DONE)
-- `getDailyDraw(date: Date): Draw` pure function in `engine/draw.ts`
-  - Seeded RNG: LCG (`mulberry32`-style), seed = `YYYYMMDD` integer
-  - Deterministic: same UTC date → same draw for all users
-- `src/services/dailyState.ts` — localStorage CRUD for daily game state
-- `src/hooks/useDailyGame.ts` — state machine (playing → submitted×N → completed)
-- `DailyGame.tsx` — 3-try game loop:
-  - After each try: show user score + best possible score (**no word revealed**)
-  - After try 3 or score = bestPossible: reveal best word, show all tries
-- Unit tests: determinism, UTC boundary, no seed collisions for ±50 years
-- Files: `engine/draw.ts` (extend), `engine/draw.test.ts`, `services/dailyState.ts`, `hooks/useDailyGame.ts`, `pages/DailyGame.tsx`
-- **Risk**: localStorage schema version field required — add `_v: 1` to detect stale state
-
-#### Corrections applied (not milestones)
-
-- **rules.json** — added `"valid-words"` section explaining that invalid/unknown words are rejected and do not consume an attempt.
-- **useDailyGame.ts** — matching code fix: `submitWord` now returns early (without incrementing the attempt counter) when `evaluateRound` returns `isValid: false`.
+- `getDailyDraw(date: Date): Draw` — seeded LCG, seed = `YYYYMMDD`, deterministic per UTC date
+- `src/services/dailyState.ts` — localStorage CRUD (`_v: 1` schema version guard)
+- `src/hooks/useDailyGame.ts` — state machine (playing → submitted×N → completed); invalid words don't consume an attempt
+- `DailyGame.tsx` — 3-try loop; after each try shows score + best possible (no word revealed); after final try reveals best word
 
 #### ✅ M4 — Training mode (DONE)
 - `src/hooks/useTraining.ts` — round lifecycle (playing → results → playing…)
-- `Training.tsx` — submit word → show colored word + score + top 3 best words + "Prochain tirage" button
-- No cumulative score; each round is standalone
-- Files: `hooks/useTraining.ts`, `pages/Training.tsx`
+- `Training.tsx` — colored word + score + top-3 collapsible + retry/next buttons
 
 #### ✅ M5 — Solver page (DONE)
-- `src/engine/solver.ts` — `solveTopN(draw, dict, n): SolverResult[]`
-  - Replaces `findBestWord.ts` (which becomes a one-liner delegating to `solveTopN`)
-  - Sort: score desc, then word length asc (shortest first on tie)
-  - Include all valid French words (even score = 0)
-- `Solver.tsx` — 4 individual letter-tile inputs (one `<input maxLength={1}>` per cell, auto-focus-next), top-10 results table
-- Unit tests: ranking order, tie-breaking, n limit
-- Files: `engine/solver.ts`, `engine/solver.test.ts`, `pages/Solver.tsx`
+- `src/engine/solver.ts` — `solveTopN(draw, dict, n)`, sort: score desc, length asc on tie
+- `Solver.tsx` — 4 letter-tile inputs, top-10 results table with full score breakdown
 
-#### M6 — Full UI redesign
-Apply Tailwind tokens consistently across all pages. Extract reusable components:
+#### ✅ M6 — Full UI redesign (DONE)
+- Extracted 10 reusable components (4 UI + 6 game) — see component table above
+- All pages refactored to use shared components
+- Deleted dead `src/App.css`
 
-| Component | Location | Used by |
-|-----------|----------|---------|
-| `Button` | `components/ui/` | everywhere |
-| `Input` | `components/ui/` | word input, solver |
-| `Badge` | `components/ui/` | score display |
-| `Card` | `components/ui/` | score cards, results |
-| `DrawDisplay` | `components/game/` | DailyGame, Training, Solver |
-| `WordInput` | `components/game/` | DailyGame, Training (+ live validity indicator via debounced `dict.has()`) |
-| `ColoredWord` | `components/game/` | score display (currently inline in old App.tsx logic) |
-| `ScoreCard` | `components/game/` | DailyGame, Training |
-| `SolverResults` | `components/game/` | Solver, Training (top 3) |
-
-Remove `src/App.css` (dead Vite template file).
-
-#### M7 — Backend foundation
-- Hono server (`server/` at repo root, separate from `src/`)
-- `POST /api/users` — create username (unique constraint)
+#### ✅ M7 — Backend foundation (DONE)
+- `server/db.ts` + `server/index.ts` — Hono + better-sqlite3, `users` table
+- `POST /api/users` — create user (2–20 chars, unique NOCASE)
 - `GET /api/users/:name/exists` — availability check
-- SQLite via `better-sqlite3`, table: `users(id, username, created_at)`
-- `src/hooks/useAuth.ts` + `src/components/UsernameModal.tsx`
-- All network calls go through `src/services/api.ts` (easy to swap mock → real)
-- Auth token = username stored in `localStorage` under `auth_username`; sent as `X-Username` header
-- Files: `server/`, `src/services/api.ts`, `src/hooks/useAuth.ts`, `src/components/UsernameModal.tsx`
+- `src/services/api.ts` — `createUser()`, `usernameExists()`
+- `src/hooks/useAuth.ts` — localStorage `auth_username`
+- `src/components/UsernameModal.tsx` — blocks UI until username chosen
+- Vite dev proxy: `/api` → `localhost:3001`
+- Run with: `npm run server`
 
-#### M8 — Leaderboard *(future)*
-Depends on M7. Score submission on daily game completion. New `/leaderboard` route. `GET /api/leaderboard?sort=avg_score|party_count|account_age`.
+#### M8 — Leaderboard *(next)*
+Depends on M7. Score submission on daily game completion. New `/leaderboard` route.
+
+- `POST /api/scores` — submit daily score (requires `X-Username` header)
+- `GET /api/leaderboard?sort=avg_score|game_count|account_age`
+- SQLite table: `scores(id, user_id, date, score, best_possible, attempts)`
+- `src/pages/Leaderboard.tsx` — ranked table
+- Add `/leaderboard` to NavBar and router
 
 ### Dependency order
 
 ```
-M1 ✅ → M2 (independent)
-       → M3 → M4
-       → M5 (engine) → M4 (UI)
-       → M5 (UI)
-       → M6 (after M2–M5)
-            → M7
-                → M8
+M1 ✅ → M2 ✅ (independent)
+       → M3 ✅ → M4 ✅
+       → M5 ✅ (engine) → M4 ✅ (UI)
+       → M5 ✅ (UI)
+       → M6 ✅ (after M2–M5)
+            → M7 ✅
+                → M8 (next)
 ```
-
-M2, M3 engine, and M5 engine are all parallelisable after M1.
