@@ -27,6 +27,47 @@ export async function createUser(username: string): Promise<CreateUserResult> {
   };
 }
 
+// ─── POST /api/scores ────────────────────────────────────────────────────────
+
+export async function submitScore(payload: {
+  username: string;
+  date: string;
+  score: number;
+  best_possible: number;
+  attempts: number;
+}): Promise<void> {
+  const { username, ...body } = payload;
+  await fetch(`${BASE}/api/scores`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Username": username,
+    },
+    body: JSON.stringify(body),
+  });
+  // Fire-and-forget: score submission failures are non-fatal
+}
+
+// ─── GET /api/leaderboard ─────────────────────────────────────────────────────
+
+export type LeaderboardSort = "avg_score" | "game_count" | "account_age";
+
+export type LeaderboardEntry = {
+  rank: number;
+  username: string;
+  avg_score: number;
+  game_count: number;
+  best_score: number;
+  created_at: string;
+};
+
+export async function fetchLeaderboard(
+  sort: LeaderboardSort = "avg_score",
+): Promise<LeaderboardEntry[]> {
+  const res = await fetch(`${BASE}/api/leaderboard?sort=${sort}`);
+  return res.json() as Promise<LeaderboardEntry[]>;
+}
+
 // ─── GET /api/users/:name/exists ─────────────────────────────────────────────
 
 export async function usernameExists(username: string): Promise<boolean> {

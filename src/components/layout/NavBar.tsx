@@ -1,10 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
 
 const NAV_LINKS = [
-  { to: "/daily",    label: "Défi du jour"  },
-  { to: "/training", label: "Entraînement"  },
-  { to: "/solver",   label: "Solveur"       },
-  { to: "/rules",    label: "Règles"        },
+  { to: "/daily",       label: "Défi du jour"  },
+  { to: "/training",    label: "Entraînement"  },
+  { to: "/solver",      label: "Solveur"       },
+  { to: "/leaderboard", label: "Classement"    },
+  { to: "/rules",       label: "Règles"        },
 ] as const;
 
 export default function NavBar() {

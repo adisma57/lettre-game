@@ -12,6 +12,7 @@ import {
   getTodayKey,
 } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
+import { submitScore } from "../services/api";
 
 type Phase =
   | { kind: "playing" }
@@ -109,15 +110,29 @@ export function useDailyGame(): GameState {
         : { kind: "attempt_shown" };
     setPhase(nextPhase);
 
+    const todayKey = getTodayKey();
     saveDailyState({
       _v: 1,
-      date:              getTodayKey(),
+      date:              todayKey,
       draw,
       attempts:          newAttempts,
       bestPossibleScore: newBestScore,
       bestWord:          newBestWord,
       completed:         nextPhase.kind === "completed",
     });
+
+    if (nextPhase.kind === "completed") {
+      const username = localStorage.getItem("auth_username");
+      if (username) {
+        submitScore({
+          username,
+          date:         todayKey,
+          score:        result.total,
+          best_possible: newBestScore,
+          attempts:     newAttempts.length,
+        });
+      }
+    }
   }, [draw, inputWord, attempts, bestPossibleScore, bestWord]);
 
   const retryRound = useCallback(() => {

@@ -43,6 +43,85 @@ app.post("/api/users", async (c) => {
   }
 });
 
+// ─── POST /api/scores ────────────────────────────────────────────────────────
+// Header: X-Username
+// Body:   { date, score, best_possible, attempts }
+// Idempotent: submitting twice for the same date is a no-op (returns 200).
+
+app.post("/api/scores", async (c) => {
+  const username = c.req.header("X-Username")?.trim();
+  if (!username) return c.json({ error: "En-tête X-Username manquant." }, 401);
+
+  const user = db
+    .prepare("SELECT id FROM users WHERE username = ? COLLATE NOCASE")
+    .get(username) as { id: number } | undefined;
+  if (!user) return c.json({ error: "Utilisateur inconnu." }, 404);
+
+  const body = await c.req.json<{
+    date?: string;
+    score?: number;
+    best_possible?: number;
+    attempts?: number;
+  }>().catch(() => ({}));
+
+  const { date, score, best_possible, attempts } = body;
+  if (
+    typeof date !== "string" ||
+    typeof score !== "number" ||
+    typeof best_possible !== "number" ||
+    typeof attempts !== "number"
+  ) {
+    return c.json({ error: "Champs requis : date, score, best_possible, attempts." }, 400);
+  }
+
+  db.prepare(`
+    INSERT INTO scores (user_id, date, score, best_possible, attempts)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, date) DO NOTHING
+  `).run(user.id, date, score, best_possible, attempts);
+
+  return c.json({ ok: true });
+});
+
+// ─── GET /api/leaderboard ─────────────────────────────────────────────────────
+// Query: ?sort=avg_score | game_count | account_age  (default: avg_score)
+
+type LeaderboardRow = {
+  rank: number;
+  username: string;
+  avg_score: number;
+  game_count: number;
+  best_score: number;
+  created_at: string;
+};
+
+const SORT_COLUMNS: Record<string, string> = {
+  avg_score:   "avg_score DESC, game_count DESC",
+  game_count:  "game_count DESC, avg_score DESC",
+  account_age: "created_at ASC, game_count DESC",
+};
+
+app.get("/api/leaderboard", (c) => {
+  const sortParam = c.req.query("sort") ?? "avg_score";
+  const orderBy = SORT_COLUMNS[sortParam] ?? SORT_COLUMNS.avg_score;
+
+  const rows = db.prepare(`
+    SELECT
+      u.username,
+      ROUND(AVG(s.score), 1)  AS avg_score,
+      COUNT(*)                AS game_count,
+      MAX(s.score)            AS best_score,
+      u.created_at
+    FROM scores s
+    JOIN users u ON u.id = s.user_id
+    GROUP BY s.user_id
+    ORDER BY ${orderBy}
+  `).all() as Omit<LeaderboardRow, "rank">[];
+
+  const ranked: LeaderboardRow[] = rows.map((r, i) => ({ rank: i + 1, ...r }));
+  return c.json(ranked);
+});
+
 // ─── GET /api/users/:name/exists ─────────────────────────────────────────────
 // Returns { exists: boolean }
 
