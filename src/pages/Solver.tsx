@@ -8,6 +8,7 @@ import type { Draw } from "../engine/types";
 
 export default function Solver() {
   const [letters, setLetters] = useState<string[]>(["", "", "", ""]);
+  const [draw, setDraw]       = useState<Draw | null>(null);
   const [results, setResults] = useState<SolverResult[] | null>(null);
 
   const hasAnyLetter = letters.some((l) => l !== "");
@@ -22,12 +23,14 @@ export default function Solver() {
   }
 
   function handleAnalyse() {
-    const draw: Draw = letters.map((l) => l.toUpperCase());
-    setResults(solveTopN(draw, mainDictionary, 10));
+    const d: Draw = letters.map((l) => l.toUpperCase());
+    setDraw(d);
+    setResults(solveTopN(d, mainDictionary, 10));
   }
 
   function handleReset() {
     setLetters(["", "", "", ""]);
+    setDraw(null);
     setResults(null);
   }
 
@@ -52,8 +55,8 @@ export default function Solver() {
         </Button>
       )}
 
-      {results !== null && (
-        <SolverResultsTable results={results} draw={letters} />
+      {results !== null && draw !== null && (
+        <SolverResultsTable results={results} draw={draw} />
       )}
     </div>
   );

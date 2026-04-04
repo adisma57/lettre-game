@@ -13,6 +13,7 @@ import {
 } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
 import { submitScore } from "../services/api";
+import { AUTH_STORAGE_KEY } from "./useAuth";
 
 type Phase =
   | { kind: "playing" }
@@ -56,8 +57,6 @@ export function useDailyGame(): GameState {
         saved.attempts.length > 0 ? { kind: "attempt_shown" } :
                                     { kind: "playing"        }
       );
-    } else {
-      setDraw(getDailyDraw());
     }
   }, []);
 
@@ -122,7 +121,7 @@ export function useDailyGame(): GameState {
     });
 
     if (nextPhase.kind === "completed") {
-      const username = localStorage.getItem("auth_username");
+      const username = localStorage.getItem(AUTH_STORAGE_KEY);
       if (username) {
         submitScore({
           username,

@@ -5,7 +5,8 @@ import db from "./db.js";
 
 const app = new Hono();
 
-app.use("*", cors({ origin: "http://localhost:5173" }));
+const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+app.use("*", cors({ origin: CORS_ORIGIN }));
 
 // Always return JSON for unhandled errors so the client can parse them
 app.onError((err, c) => {
@@ -72,6 +73,12 @@ app.post("/api/scores", async (c) => {
     typeof attempts !== "number"
   ) {
     return c.json({ error: "Champs requis : date, score, best_possible, attempts." }, 400);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return c.json({ error: "Format de date invalide (YYYY-MM-DD attendu)." }, 400);
+  }
+  if (score < 0 || best_possible < 0 || attempts < 1 || attempts > 3) {
+    return c.json({ error: "Valeurs hors limites." }, 400);
   }
 
   db.prepare(`

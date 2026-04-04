@@ -46,7 +46,11 @@ export function loadDailyState(): DailyState | null {
 }
 
 export function saveDailyState(state: DailyState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    console.error("Failed to save daily state to localStorage");
+  }
 }
 
 export function createFreshState(date: string, draw: Draw): DailyState {
