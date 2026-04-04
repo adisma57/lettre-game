@@ -7,6 +7,12 @@ const app = new Hono();
 
 app.use("*", cors({ origin: "http://localhost:5173" }));
 
+// Always return JSON for unhandled errors so the client can parse them
+app.onError((err, c) => {
+  console.error("[server error]", err);
+  return c.json({ error: "Erreur serveur." }, 500);
+});
+
 // ─── POST /api/users ──────────────────────────────────────────────────────────
 // Body: { username: string }
 // Creates a new user. Returns 201 on success, 409 if name already taken,

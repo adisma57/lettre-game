@@ -18,11 +18,11 @@ export async function createUser(username: string): Promise<CreateUserResult> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username }),
   });
-  const body: unknown = await res.json();
+  const body: unknown = await res.json().catch(() => null);
   if (res.ok) return { ok: true, username: (body as { username: string }).username };
   return {
     ok: false,
-    error: isApiError(body) ? body.error : "Erreur inconnue.",
+    error: isApiError(body) ? body.error : `Erreur serveur (${res.status}).`,
     status: res.status,
   };
 }
