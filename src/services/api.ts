@@ -65,6 +65,10 @@ export async function fetchLeaderboard(
   sort: LeaderboardSort = "avg_score",
 ): Promise<LeaderboardEntry[]> {
   const res = await fetch(`${BASE}/api/leaderboard?sort=${sort}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(body.error ?? `Erreur serveur (${res.status}).`);
+  }
   return res.json() as Promise<LeaderboardEntry[]>;
 }
 

@@ -18,7 +18,7 @@ export default function Leaderboard() {
     setError(null);
     fetchLeaderboard(sort)
       .then(setRows)
-      .catch(() => setError("Impossible de charger le classement."))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Impossible de charger le classement."))
       .finally(() => setLoading(false));
   }, [sort]);
 
