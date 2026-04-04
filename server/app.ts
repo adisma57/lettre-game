@@ -34,11 +34,19 @@ app.use(
 );
 
 let schemaReady: Promise<void> | undefined;
-app.use("*", async (_c, next) => {
+app.use("*", async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if (path === "/api/health") {
+    return next();
+  }
   if (!schemaReady) schemaReady = ensureSchema();
   await schemaReady;
   await next();
 });
+
+app.get("/health", (c) =>
+  c.json({ ok: true, t: new Date().toISOString() }),
+);
 
 app.onError((err, c) => {
   console.error("[server error]", err);
