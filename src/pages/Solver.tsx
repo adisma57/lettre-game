@@ -1,31 +1,24 @@
-import { useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import { useState } from "react";
 import { solveTopN, type SolverResult } from "../engine/solver";
 import { mainDictionary } from "../engine/mainDictionary";
+import { DrawInput } from "../components/game/DrawInput";
+import { SolverResultsTable } from "../components/game/SolverResults";
+import { Button } from "../components/ui/Button";
 import type { Draw } from "../engine/types";
 
 export default function Solver() {
   const [letters, setLetters] = useState<string[]>(["", "", "", ""]);
   const [results, setResults] = useState<SolverResult[] | null>(null);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
 
   const hasAnyLetter = letters.some((l) => l !== "");
   const canAnalyse   = letters.every((l) => l !== "");
 
-  function handleChange(i: number, raw: string) {
-    const char = raw.replace(/[^A-Za-z]/g, "").slice(-1).toUpperCase();
+  function handleLetterChange(index: number, value: string) {
     setLetters((prev) => {
       const next = [...prev];
-      next[i] = char;
+      next[index] = value;
       return next;
     });
-    if (char) inputRefs.current[i + 1]?.focus();
-  }
-
-  function handleKeyDown(i: number, e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && letters[i] === "") {
-      inputRefs.current[i - 1]?.focus();
-    }
   }
 
   function handleAnalyse() {
@@ -36,7 +29,6 @@ export default function Solver() {
   function handleReset() {
     setLetters(["", "", "", ""]);
     setResults(null);
-    inputRefs.current[0]?.focus();
   }
 
   return (
@@ -48,88 +40,20 @@ export default function Solver() {
 
       {/* Draw input */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        {letters.map((letter, i) => (
-          <input
-            key={i}
-            ref={(el) => { inputRefs.current[i] = el; }}
-            type="text"
-            maxLength={1}
-            value={letter}
-            onChange={(e) => handleChange(i, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(i, e)}
-            className="h-14 w-14 rounded-lg border border-line bg-surface text-center text-2xl font-bold text-primary uppercase outline-none transition-colors focus:border-primary"
-          />
-        ))}
-
-        <button
-          onClick={handleAnalyse}
-          disabled={!canAnalyse}
-          className="ml-2 rounded-lg bg-primary px-5 py-3 font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <DrawInput letters={letters} onChange={handleLetterChange} />
+        <Button onClick={handleAnalyse} disabled={!canAnalyse} className="ml-2 py-3">
           Analyser
-        </button>
+        </Button>
       </div>
 
       {hasAnyLetter && (
-        <button
-          onClick={handleReset}
-          className="mt-2 text-sm text-muted transition-colors hover:text-fg"
-        >
+        <Button variant="ghost" onClick={handleReset} className="mt-2">
           Réinitialiser
-        </button>
+        </Button>
       )}
 
-      {/* Results table */}
       {results !== null && (
-        <div className="mt-6 w-full overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
-                <th className="px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-left">Mot</th>
-                <th className="px-3 py-2 text-right">Score</th>
-                <th className="px-3 py-2 text-left">Lettres utilisées</th>
-                <th className="px-3 py-2 text-center">Ordre</th>
-                <th className="px-3 py-2 text-right">Insertions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r, idx) => (
-                <tr
-                  key={idx}
-                  className={idx === 0 ? "border-l-2 border-primary bg-elevated" : ""}
-                >
-                  <td className="border-b border-line px-3 py-3 text-muted">
-                    {idx + 1}
-                  </td>
-                  <td className="border-b border-line px-3 py-3 font-mono font-bold text-fg">
-                    {r.word}
-                  </td>
-                  <td className={`border-b border-line px-3 py-3 text-right font-bold ${r.score.total > 0 ? "text-primary" : "text-muted"}`}>
-                    {r.score.total}
-                  </td>
-                  <td className="border-b border-line px-3 py-3 text-muted">
-                    {r.score.usedLetters.length > 0
-                      ? r.score.usedLetters.join(", ")
-                      : "—"}
-                  </td>
-                  <td className="border-b border-line px-3 py-3 text-center">
-                    {r.score.orderBonus
-                      ? <span className="text-success">✓</span>
-                      : <span className="text-muted">✗</span>}
-                  </td>
-                  <td className="border-b border-line px-3 py-3 text-right text-muted">
-                    {r.score.insertions}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <p className="mt-3 text-xs text-muted">
-            Résultats pour le tirage {letters.join(" · ")}
-          </p>
-        </div>
+        <SolverResultsTable results={results} draw={letters} />
       )}
     </div>
   );
