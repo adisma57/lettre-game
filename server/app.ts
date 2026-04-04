@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import {
   ensureSchema,
@@ -34,15 +35,12 @@ app.use(
 );
 
 let schemaReady: Promise<void> | undefined;
-app.use("*", async (c, next) => {
-  const path = new URL(c.req.url).pathname;
-  if (path === "/api/health") {
-    return next();
-  }
+/** Ne pas passer par un middleware global : sur Vercel le pathname peut ne pas être `/api/health`. */
+const withDb: MiddlewareHandler = async (_c, next) => {
   if (!schemaReady) schemaReady = ensureSchema();
   await schemaReady;
   await next();
-});
+};
 
 app.get("/health", (c) =>
   c.json({ ok: true, t: new Date().toISOString() }),
@@ -55,7 +53,7 @@ app.onError((err, c) => {
 
 // ─── POST /api/users ──────────────────────────────────────────────────────────
 
-app.post("/users", async (c) => {
+app.post("/users", withDb, async (c) => {
   const body = (await c.req
     .json()
     .catch(() => ({}))) as { username?: string };
@@ -77,7 +75,7 @@ app.post("/users", async (c) => {
 
 // ─── POST /api/scores ────────────────────────────────────────────────────────
 
-app.post("/scores", async (c) => {
+app.post("/scores", withDb, async (c) => {
   const username = c.req.header("X-Username")?.trim();
   if (!username) return c.json({ error: "En-tête X-Username manquant." }, 401);
 
@@ -118,7 +116,7 @@ app.post("/scores", async (c) => {
 
 type SortKey = "avg_score" | "game_count" | "account_age";
 
-app.get("/leaderboard", async (c) => {
+app.get("/leaderboard", withDb, async (c) => {
   const sortParam = (c.req.query("sort") ?? "avg_score") as SortKey;
   const sort: SortKey =
     sortParam === "game_count" || sortParam === "account_age"
@@ -131,7 +129,7 @@ app.get("/leaderboard", async (c) => {
 
 // ─── GET /api/users/:name/exists ─────────────────────────────────────────────
 
-app.get("/users/:name/exists", async (c) => {
+app.get("/users/:name/exists", withDb, async (c) => {
   const name = c.req.param("name");
   const exists = await usernameExists(name);
   return c.json({ exists });
