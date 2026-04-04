@@ -16,7 +16,7 @@ export type DailyState = {
   completed: boolean;
 };
 
-const STORAGE_KEY = "lettre-game:daily";
+const STORAGE_KEY = "quadra:daily";
 
 /** Returns today's UTC date as "YYYY-MM-DD". */
 export function getTodayKey(): string {

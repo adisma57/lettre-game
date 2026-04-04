@@ -33,7 +33,7 @@ export default function Home() {
       {/* Hero */}
       <section className="py-12 text-center">
         <h1 className="text-5xl font-bold tracking-tight text-fg">
-          Jeu de <span className="text-primary">Lettres</span>
+          <span className="text-primary">Quadra</span>
         </h1>
         <p className="mt-4 text-lg text-muted">
           Formez le meilleur mot à partir d&apos;un tirage de 4 lettres.

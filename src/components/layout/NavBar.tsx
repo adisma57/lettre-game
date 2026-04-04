@@ -15,7 +15,7 @@ export default function NavBar() {
           to="/"
           className="text-lg font-bold tracking-tight text-primary hover:text-primary-dim transition-colors"
         >
-          Jeu de Lettres
+          Quadra
         </Link>
 
         <ul className="flex items-center gap-1">
