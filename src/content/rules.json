@@ -7,6 +7,11 @@
       "body": "À chaque manche, un tirage de 4 lettres est révélé. Proposez un mot français qui intègre ces lettres pour marquer le maximum de points. Plus vos lettres sont bien positionnées, plus votre score est élevé."
     },
     {
+      "id": "valid-words",
+      "title": "Mots valides",
+      "body": "Seuls les mots présents dans le dictionnaire français sont acceptés. Les mots inventés, les noms propres et les abréviations sont refusés. En cas de refus, l'essai n'est pas comptabilisé et vous pouvez en soumettre un autre."
+    },
+    {
       "id": "scoring",
       "title": "Calcul du score",
       "body": "Le score d'un mot repose sur trois composantes :",

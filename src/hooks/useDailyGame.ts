@@ -76,7 +76,13 @@ export function useDailyGame(): GameState {
   const submitWord = useCallback(() => {
     const result = evaluateRound(draw, inputWord, mainValidator);
 
-    // Compute best possible score lazily on first submit (~50 ms)
+    // Invalid word → show error message, do NOT consume an attempt
+    if (!result.isValid) {
+      setCurrentAttemptResult(result);
+      return;
+    }
+
+    // Compute best possible score lazily on first valid submit (~50 ms)
     let newBestScore = bestPossibleScore;
     let newBestWord  = bestWord;
     if (bestPossibleScore === -1) {
