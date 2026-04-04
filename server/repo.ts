@@ -1,4 +1,20 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
+
+/** Évite de bloquer une invocation Vercel jusqu'au maxDuration si Neon ne répond pas. */
+const NEON_FETCH_TIMEOUT_MS = 20_000;
+
+const baseFetch = globalThis.fetch.bind(globalThis);
+neonConfig.fetchFunction = (
+  input: Parameters<typeof globalThis.fetch>[0],
+  init?: Parameters<typeof globalThis.fetch>[1],
+) => {
+  const deadline = AbortSignal.timeout(NEON_FETCH_TIMEOUT_MS);
+  const signal =
+    init?.signal && typeof AbortSignal.any === "function"
+      ? AbortSignal.any([init.signal, deadline])
+      : deadline;
+  return baseFetch(input, { ...init, signal });
+};
 
 const isDeployed =
   process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
