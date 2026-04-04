@@ -1,27 +1,24 @@
-﻿// src/engine/DictionaryService.ts
 import { normalizeWord } from "./score";
-import type { WordValidator } from "./RoundService";
+import type { WordValidator } from "./types";
 
-/**
- * Abstraction minimale d'un dictionnaire.
- * On stocke les mots en forme normalisée (majuscules, sans accents).
- */
 export interface Dictionary {
-  has(word: string): boolean; // accepte brut ou normalisé, on renormalise dedans
+  /** Returns true if `word` belongs to the dictionary (case- and accent-insensitive). */
+  has(word: string): boolean;
+  /** Iterates all words in their normalized (uppercase, no diacritics) form. */
+  words(): Iterable<string>;
 }
 
 /**
- * Crée un dictionnaire en mémoire à partir d'une liste de mots FR.
- * `words` peut contenir des accents et de la casse, on normalise tout.
+ * Builds an in-memory dictionary from a raw word list.
+ * All entries are normalized on insertion so lookups are O(1)
+ * regardless of the casing or accents of the query.
  */
-export function createSetDictionary(words: string[]): Dictionary {
+export function createSetDictionary(rawWords: string[]): Dictionary {
   const set = new Set<string>();
 
-  for (const w of words) {
+  for (const w of rawWords) {
     const normalized = normalizeWord(w).trim();
-    if (normalized) {
-      set.add(normalized);
-    }
+    if (normalized) set.add(normalized);
   }
 
   return {
@@ -30,19 +27,17 @@ export function createSetDictionary(words: string[]): Dictionary {
       if (!normalized) return false;
       return set.has(normalized);
     },
-    // pour l'algorithme de recherche du meilleur mot
-    _iterableWords: set
-  } as any;
+    words(): Iterable<string> {
+      return set;
+    },
+  };
 }
 
 /**
- * Adapte un Dictionary en WordValidator pour RoundService.
- * RoundService lui passe déjà un mot normalisé, mais on renormalise quand même:
- * - ça reste correct
- * - ça permet de réutiliser le validator ailleurs avec des mots bruts.
+ * Adapts a Dictionary into a WordValidator compatible with RoundService.
+ * RoundService already passes a normalized word, but has() re-normalizes
+ * defensively so the validator stays correct when called from other contexts.
  */
 export function createWordValidatorFromDictionary(dict: Dictionary): WordValidator {
-  return (normalizedWord: string): boolean => {
-    return dict.has(normalizedWord);
-  };
+  return (normalizedWord: string) => dict.has(normalizedWord);
 }

@@ -1,0 +1,102 @@
+{
+  "title": "Règles du jeu",
+  "sections": [
+    {
+      "id": "objective",
+      "title": "Objectif",
+      "body": "À chaque manche, un tirage de 4 lettres est révélé. Proposez un mot français qui intègre ces lettres pour marquer le maximum de points. Plus vos lettres sont bien positionnées, plus votre score est élevé."
+    },
+    {
+      "id": "scoring",
+      "title": "Calcul du score",
+      "body": "Le score d'un mot repose sur trois composantes :",
+      "formula": "score = (lettres utilisées × 3) + bonus d'ordre − insertions",
+      "items": [
+        {
+          "label": "Lettre utilisée",
+          "points": "+3 pts",
+          "description": "Chaque lettre du tirage présente dans votre mot rapporte 3 points. Les doublons dans le tirage comptent séparément."
+        },
+        {
+          "label": "Bonus d'ordre",
+          "points": "+3 pts",
+          "description": "Si les lettres du tirage apparaissent dans votre mot exactement dans le même ordre que le tirage, vous obtenez 3 points supplémentaires."
+        },
+        {
+          "label": "Insertion",
+          "points": "−1 pt",
+          "description": "Chaque lettre étrangère au tirage, située entre la première et la dernière lettre du tirage dans votre mot (la « zone »), retire 1 point."
+        }
+      ],
+      "examples": [
+        {
+          "draw": ["R", "A", "M", "E"],
+          "word": "RAME",
+          "score": 15,
+          "note": "4 lettres × 3 = 12, +3 bonus d'ordre, 0 insertion → 15 pts"
+        },
+        {
+          "draw": ["B", "A", "N", "E"],
+          "word": "BAIGNER",
+          "score": 13,
+          "note": "4 lettres × 3 = 12, +3 bonus d'ordre, −2 insertions (I, G) → 13 pts"
+        },
+        {
+          "draw": ["T", "R", "P", "L"],
+          "word": "TORPILLE",
+          "score": 13,
+          "note": "4 lettres × 3 = 12, +3 bonus d'ordre, −2 insertions (O, I) → 13 pts"
+        }
+      ]
+    },
+    {
+      "id": "coloring",
+      "title": "Code couleur",
+      "body": "Après chaque essai, les lettres de votre mot sont colorées pour visualiser leur rôle dans le score :",
+      "colors": [
+        {
+          "role": "ordered",
+          "label": "Vert",
+          "description": "Lettre du tirage dans la zone, dans l'ordre du tirage. Contribue au bonus d'ordre."
+        },
+        {
+          "role": "unordered",
+          "label": "Bleu",
+          "description": "Lettre du tirage dans la zone, mais hors ordre."
+        },
+        {
+          "role": "insert",
+          "label": "Rouge",
+          "description": "Insertion : lettre étrangère au tirage située dans la zone. Retire 1 point."
+        },
+        {
+          "role": "unused",
+          "label": "Gris",
+          "description": "Lettre hors zone. Ne contribue ni positivement ni négativement au score."
+        }
+      ]
+    },
+    {
+      "id": "modes",
+      "title": "Modes de jeu",
+      "body": "L'application propose trois modes :",
+      "modes": [
+        {
+          "name": "Défi du jour",
+          "route": "/daily",
+          "description": "Un tirage identique pour tous les joueurs, renouvelé chaque jour à minuit UTC. Vous disposez de 3 essais. Après chaque essai, le meilleur score possible est révélé — mais pas le mot. Revenez chaque jour pour progresser."
+        },
+        {
+          "name": "Entraînement",
+          "route": "/training",
+          "description": "Tirages aléatoires en boucle, sans limite. Après chaque essai, le top 3 des meilleurs mots possibles est révélé. Idéal pour explorer les stratégies et progresser librement."
+        },
+        {
+          "name": "Solveur",
+          "route": "/solver",
+          "description": "Entrez n'importe quel tirage pour obtenir immédiatement les 10 meilleurs mots possibles, classés par score puis par longueur de mot."
+        }
+      ]
+    }
+  ]
+}

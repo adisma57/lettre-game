@@ -76,16 +76,16 @@ describe("scoreWord – cas avec doublons dans le tirage", () => {
     // Lettres utilisées AVEC DOUBLONS
     expect(result.usedLetters).toEqual(["H", "R", "I", "R"]);
 
-    // Squelette pour insertions basé sur lettres distinctes: H(0), R(2), I(4)
+    // Greedy skeleton: H(0), R(2), I(4), R(6)
     expect(result.skeletonIndices).toEqual([0, 2, 4, 6]);
 
-    // Zone utile 0–4 : H E R B I -> insertions = E, B = 2
+    // Zone [0..6]: H E R B I E R → non-skeleton positions: E(1), B(3), E(5) = 3 insertions
     expect(result.insertions).toBe(3);
 
-    // Ordre du tirage H R I R présent dans le mot
+    // Skeleton sequence [H,R,I,R] matches draw [H,R,I,R] → order bonus
     expect(result.orderBonus).toBe(true);
 
-    // 4 lettres * 3 = 12 +3 (ordre) -2 (insertions) = 13
+    // 4 × 3 = 12, +3 order bonus, −3 insertions = 12
     expect(result.total).toBe(12);
   });
 
@@ -118,15 +118,13 @@ describe("scoreWord – cas avec doublons dans le tirage", () => {
       // Squelette distinct = V (6), R (7), A (8)
       expect(result.skeletonIndices).toEqual([0, 3, 6, 7]);
 
-      // zoneStart = première lettre du tirage trouvée : R à index 3
-      // zoneEnd   = 8
-      // insertions = C, E → 2
+      // Zone [0..7]: A P E R C E V R → non-skeleton positions: P(1),E(2),C(4),E(5) = 4 insertions
       expect(result.insertions).toBe(4);
 
-      // Ordre NON respecté (VRAR)
+      // Skeleton sequence [A,R,V,R] does not match draw [V,R,A,R] → no order bonus
       expect(result.orderBonus).toBe(false);
 
-      // Score final = 12 - 2 = 10
+      // 4 × 3 = 12, no order bonus, −4 insertions = 8
       expect(result.total).toBe(8);
     });
 

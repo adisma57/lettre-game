@@ -1,34 +1,31 @@
-﻿// src/engine/score.ts
 import type { Draw, ScoreResult, ScorePart } from "./types";
 
-/**
- * Normalisation : majuscules + suppression des accents.
- */
+/** Converts to uppercase and strips all diacritics (é→E, ç→C, etc.). */
 export function normalizeWord(raw: string): string {
   return raw
     .toUpperCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // supprime les diacritiques
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /**
- * Lettres du tirage utilisées pour le score de base.
- * Avec doublons :
- * - on parcourt le tirage dans son ordre
- * - pour chaque lettre, on cherche une occurrence disponible dans le mot
- * - si trouvée, on la consomme
+ * Returns which draw letters appear in the word, consuming each occurrence
+ * at most once (handles duplicates in the draw).
+ *
+ * The draw is traversed in order; for each draw letter the first remaining
+ * occurrence in the word is consumed.
  */
 function computeUsedLetters(draw: Draw, word: string): string[] {
   const normalizedDraw = draw.map((l) => normalizeWord(l)[0]);
-  const chars = word.split("");
+  const remaining = word.split("");
   const used: string[] = [];
 
   for (const letter of normalizedDraw) {
     if (!letter) continue;
-    const idx = chars.indexOf(letter);
+    const idx = remaining.indexOf(letter);
     if (idx !== -1) {
       used.push(letter);
-      chars.splice(idx, 1); // consomme cette occurrence
+      remaining.splice(idx, 1); // consume this occurrence
     }
   }
 
@@ -36,28 +33,24 @@ function computeUsedLetters(draw: Draw, word: string): string[] {
 }
 
 /**
- * Squelette pour les insertions ET pour le bonus d'ordre :
- * - on parcourt le mot de gauche à droite
- * - on garde un compteur des lettres du tirage disponibles (avec doublons)
- * - à chaque lettre du mot, si elle est encore dispo, on la prend dans le squelette
+ * Builds the "skeleton": the positions in the word occupied by draw letters,
+ * found by a left-to-right greedy scan that respects duplicate counts.
  *
- * Exemple:
- *   draw = [V, R, A, R]
- *   word = A P E R C E V R A
- *   => squelette = A(0), R(3), V(6), R(7) → [0,3,6,7]
+ * Example — draw [V, R, A, R], word APERCEVRA:
+ *   A(0) → take A; R(3) → take R; V(6) → take V; R(7) → take R
+ *   → skeleton indices [0, 3, 6, 7]
+ *
+ * The skeleton defines the "zone" used to count insertions.
  */
 function buildSkeleton(word: string, draw: Draw): number[] {
-  
-
   const counts: Record<string, number> = {};
   for (const l of draw) {
     const c = normalizeWord(l)[0];
     if (!c) continue;
-    counts[c] = (counts[c] || 0) + 1;
+    counts[c] = (counts[c] ?? 0) + 1;
   }
 
   const indices: number[] = [];
-
   for (let i = 0; i < word.length; i++) {
     const ch = word[i];
     if (!counts[ch]) continue;
@@ -68,73 +61,49 @@ function buildSkeleton(word: string, draw: Draw): number[] {
 }
 
 /**
- * Bonus d'ordre basé sur le SQUELETTE :
- * - on prend le squelette tel quel (lettres consommées dans le mot)
- * - on le compare au tirage normalisé (avec doublons)
- * - si la séquence de lettres du squelette == tirage, bonus +3
- * - sinon, 0
+ * Order bonus: the skeleton letters must appear in the word in the exact same
+ * order as the draw (i.e. the skeleton sequence === the normalized draw).
  */
-function hasOrderBonusFromSkeleton(
-  word: string,
-  draw: Draw,
-  skeletonIndices: number[]
-): boolean {
+function hasOrderBonus(word: string, draw: Draw, skeletonIndices: number[]): boolean {
   const normalizedDraw = draw.map((l) => normalizeWord(l)[0]);
 
-  if (skeletonIndices.length !== normalizedDraw.length) {
-    return false;
-  }
+  if (skeletonIndices.length !== normalizedDraw.length) return false;
 
-  for (let i = 0; i < skeletonIndices.length; i++) {
-    const ch = word[skeletonIndices[i]];
-    if (ch !== normalizedDraw[i]) {
-      return false;
-    }
-  }
-
-  return true;
+  return skeletonIndices.every((pos, i) => word[pos] === normalizedDraw[i]);
 }
 
 /**
- * Compte les insertions internes :
- * - si squelette vide → 0
- * - sinon zone utile = [firstIndex..lastIndex]
- * - toute position de la zone qui n’est pas dans le squelette = insertion
+ * Counts positions strictly inside the skeleton zone [first..last] that are
+ * NOT part of the skeleton — these are the "inserted" letters penalised in scoring.
  */
 function countInsertions(skeletonIndices: number[]): number {
   if (skeletonIndices.length === 0) return 0;
 
-  const firstIndex = skeletonIndices[0];
-  const lastIndex = skeletonIndices[skeletonIndices.length - 1];
+  const first = skeletonIndices[0];
+  const last = skeletonIndices[skeletonIndices.length - 1];
   const skeletonSet = new Set(skeletonIndices);
+
   let insertions = 0;
-
-  for (let i = firstIndex; i <= lastIndex; i++) {
-    if (!skeletonSet.has(i)) {
-      insertions++;
-    }
+  for (let i = first; i <= last; i++) {
+    if (!skeletonSet.has(i)) insertions++;
   }
-
   return insertions;
 }
 
 /**
- * Calcul complet du score.
+ * Computes the full score for a (draw, word) pair.
+ *
+ * Formula: base + orderBonus − insertions
+ *   base        = usedLetters.length × 3
+ *   orderBonus  = +3 if skeleton matches draw order exactly, else 0
+ *   insertions  = −1 per non-skeleton letter inside the skeleton zone
  */
 export function scoreWord(draw: Draw, rawWord: string): ScoreResult {
   const word = normalizeWord(rawWord).trim();
-
-  // Lettres utilisées (AVEC DOUBLONS)
   const usedLetters = computeUsedLetters(draw, word);
 
-  // Cas aucune lettre du tirage utilisée -> score 0
+  // No draw letter used → score is zero, no skeleton to compute.
   if (usedLetters.length === 0) {
-    const parts: ScorePart[] = [
-      { label: "base", value: 0 },
-      { label: "order_bonus", value: 0 },
-      { label: "insertions", value: 0 },
-    ];
-
     return {
       draw,
       word,
@@ -143,21 +112,19 @@ export function scoreWord(draw: Draw, rawWord: string): ScoreResult {
       insertions: 0,
       orderBonus: false,
       total: 0,
-      parts,
+      parts: [
+        { label: "base", value: 0 },
+        { label: "order_bonus", value: 0 },
+        { label: "insertions", value: 0 },
+      ],
     };
   }
 
-  // Base
   const baseScore = usedLetters.length * 3;
-
-  // Squelette et insertions
   const skeletonIndices = buildSkeleton(word, draw);
   const insertions = countInsertions(skeletonIndices);
-
-  // Bonus d’ordre basé sur le squelette
-  const orderBonus = hasOrderBonusFromSkeleton(word, draw, skeletonIndices);
+  const orderBonus = hasOrderBonus(word, draw, skeletonIndices);
   const orderBonusPoints = orderBonus ? 3 : 0;
-
   const total = baseScore + orderBonusPoints - insertions;
 
   const parts: ScorePart[] = [
@@ -166,14 +133,5 @@ export function scoreWord(draw: Draw, rawWord: string): ScoreResult {
     { label: "insertions", value: -insertions },
   ];
 
-  return {
-    draw,
-    word,
-    usedLetters,
-    skeletonIndices,
-    insertions,
-    orderBonus,
-    total,
-    parts,
-  };
+  return { draw, word, usedLetters, skeletonIndices, insertions, orderBonus, total, parts };
 }

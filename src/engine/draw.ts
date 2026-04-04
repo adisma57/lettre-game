@@ -1,37 +1,23 @@
-﻿import type { Draw } from "./types";
+import type { Draw } from "./types";
 
-const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-// 8 lettres les plus rares
-const RARE = ["J", "K", "Q", "W", "X", "Y", "Z", "H"]; 
-const ALL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-// Construction des poids
-const WEIGHTS: Record<string, number> = {};
-for (const l of ALL) {
-  WEIGHTS[l] = RARE.includes(l) ? 1 : 4;
-}
+// These letters are rare in French; they receive a lower weight so the draw
+// pool produces playable hands more often.
+const RARE_LETTERS = new Set(["J", "K", "Q", "W", "X", "Y", "Z", "H"]);
 
-// Pool pondéré
-export const WEIGHTED_POOL: string[] = Object.entries(WEIGHTS).flatMap(
-  ([letter, weight]) => Array(weight).fill(letter)
+const LETTER_WEIGHT: Record<string, number> = Object.fromEntries(
+  ALPHABET.map((l) => [l, RARE_LETTERS.has(l) ? 1 : 4])
 );
 
-export function generateDraw(): Draw {
-  const result: Draw = [];
-  for (let i = 0; i < 4; i++) {
-    const index = Math.floor(Math.random() * LETTERS.length);
-    result.push(LETTERS[index]);
-  }
-  return result;
-}
+// Flat pool where each letter appears as many times as its weight.
+// Sampling a uniform index from this array gives a weighted random draw.
+export const WEIGHTED_POOL: string[] = ALPHABET.flatMap((l) =>
+  Array<string>(LETTER_WEIGHT[l]).fill(l)
+);
 
-
-// Tirage pondéré
-export function generateDrawWeighted(count = 4): string[] {
-  const draw: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const idx = Math.floor(Math.random() * WEIGHTED_POOL.length);
-    draw.push(WEIGHTED_POOL[idx]);
-  }
-  return draw;
+export function generateDrawWeighted(count = 4): Draw {
+  return Array.from({ length: count }, () =>
+    WEIGHTED_POOL[Math.floor(Math.random() * WEIGHTED_POOL.length)]
+  );
 }

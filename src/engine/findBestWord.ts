@@ -1,12 +1,13 @@
-﻿import { scoreWord } from "./score";
+import { scoreWord } from "./score";
 import type { Draw } from "./types";
 import type { Dictionary } from "./DictionaryService";
 
 /**
- * Retourne le meilleur mot du dictionnaire pour un tirage donné.
- * - Parcourt tout le dictionnaire (Set)
- * - Score chaque mot
- * - Garde le meilleur (premier en cas d’égalité)
+ * Scans the entire dictionary to find the highest-scoring word for a given draw.
+ * O(n) where n ≈ 336k (French word list size).
+ *
+ * Returns null only if the dictionary is empty.
+ * Ties are broken by first occurrence in iteration order.
  */
 export function findBestWordForDraw(
   draw: Draw,
@@ -15,22 +16,13 @@ export function findBestWordForDraw(
   let bestWord: string | null = null;
   let bestScore = -1;
 
-  // dictionary.has() ne donne pas la liste.
-  // SetDictionary doit exposer son Set interne. On le récupère via une méthode interne.
-  // Ajoute ce getter dans createSetDictionary pour l’itération.
-
-  const iterable = (dictionary as any)._iterableWords as Set<string>;
-  if (!iterable) return null;
-
-  for (const w of iterable) {
-    const r = scoreWord(draw, w);
-    const s = r.total;
-
-    if (s > bestScore) {
-      bestScore = s;
-      bestWord = w;
+  for (const word of dictionary.words()) {
+    const { total } = scoreWord(draw, word);
+    if (total > bestScore) {
+      bestScore = total;
+      bestWord = word;
     }
   }
 
-  return bestWord ? { word: bestWord, score: bestScore } : null;
+  return bestWord !== null ? { word: bestWord, score: bestScore } : null;
 }
