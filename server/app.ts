@@ -37,7 +37,7 @@ app.use(
 let schemaReady: Promise<void> | undefined;
 /** Ne pas passer par un middleware global : sur Vercel le pathname peut ne pas être `/api/health`. */
 const withDb: MiddlewareHandler = async (_c, next) => {
-  if (!schemaReady) schemaReady = ensureSchema();
+  schemaReady ??= ensureSchema();
   await schemaReady;
   await next();
 };
