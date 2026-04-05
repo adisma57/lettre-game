@@ -1,5 +1,3 @@
-import { Button } from "../ui/Button";
-
 interface WordInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -28,7 +26,7 @@ export function WordInput({
 
   return (
     <div>
-      <div className={`flex gap-3 rounded-xl border-2 bg-surface p-1 transition-all ${ringColor}`}>
+      <div className={`flex gap-2 rounded-xl border-2 bg-surface p-1 transition-all ${ringColor}`}>
         <input
           type="text"
           value={value}
@@ -38,12 +36,17 @@ export function WordInput({
           }}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 bg-transparent px-3 py-1.5 font-mono text-lg text-fg outline-none placeholder:text-muted/50 disabled:opacity-50"
+          className="min-w-0 flex-1 bg-transparent px-3 py-1.5 font-mono text-base text-fg outline-none placeholder:text-muted/50 disabled:opacity-50"
           autoFocus
         />
-        <Button onClick={onSubmit} disabled={disabled || !value.trim()} className="shrink-0">
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={disabled || !value.trim()}
+          className="btn-shine shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40 sm:px-5 sm:text-sm"
+        >
           {submitLabel}
-        </Button>
+        </button>
       </div>
       {error && (
         <p className="mt-2 flex items-center gap-1.5 text-sm text-error">
