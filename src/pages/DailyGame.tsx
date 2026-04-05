@@ -64,8 +64,8 @@ export default function DailyGame() {
         <ScoreCard
           key={idx}
           label={`— Essai ${idx + 1} —`}
-          score={idx === attempts.length - 1 ? currentAttemptResult?.score : null}
-          plainWord={idx < attempts.length - 1 ? attempt.normalizedWord : undefined}
+          score={idx === attempts.length - 1 ? currentAttemptResult?.score ?? null : null}
+          plainWord={attempt.normalizedWord}
           total={attempt.total}
           bestPossibleScore={bestPossibleScore >= 0 ? bestPossibleScore : undefined}
           className="mb-5"
