@@ -3,9 +3,12 @@ import type { ReactNode } from "react";
 type Variant = "primary" | "secondary" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
-  primary:   "rounded-lg bg-primary px-5 py-2 font-semibold text-white transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40",
-  secondary: "rounded-lg border border-line bg-elevated px-5 py-2 text-fg transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-40",
-  ghost:     "text-sm text-muted transition-colors hover:text-fg disabled:cursor-not-allowed disabled:opacity-40",
+  primary:
+    "btn-shine rounded-lg bg-primary px-5 py-2 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40",
+  secondary:
+    "rounded-lg border border-line bg-elevated px-5 py-2 text-sm font-medium text-fg transition-all hover:border-primary/50 hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40",
+  ghost:
+    "text-sm font-medium text-muted underline-offset-4 transition-colors hover:text-fg hover:underline disabled:cursor-not-allowed disabled:opacity-40",
 };
 
 interface ButtonProps {

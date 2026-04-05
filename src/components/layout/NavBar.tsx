@@ -17,60 +17,72 @@ export default function NavBar() {
   useEffect(() => { setIsOpen(false); }, [location.pathname]);
 
   return (
-    <header className="border-b border-line bg-surface">
-      <nav className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
+    <header className="sticky top-0 z-50 border-b border-line bg-canvas/90 backdrop-blur-md">
+      <nav className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
+        {/* Logo */}
         <Link
           to="/"
-          className="text-lg font-bold tracking-tight text-primary hover:text-primary-dim transition-colors"
+          className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
         >
-          Quadra
+          {/* Lettermark tile */}
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-primary/40 bg-primary/10 font-mono text-sm font-bold text-primary">
+            Q
+          </div>
+          <span className="font-display text-lg font-bold tracking-tight text-fg">
+            QUADRA
+          </span>
         </Link>
 
-        {/* Desktop nav — hidden below md (768 px) */}
-        <ul className="hidden md:flex items-center gap-1">
+        {/* Desktop nav — hidden below md */}
+        <ul className="hidden md:flex items-center gap-0.5">
           {NAV_LINKS.map(({ to, label }) => (
             <li key={to}>
               <NavLink
                 to={to}
                 className={({ isActive }) =>
                   [
-                    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    "relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-primary text-white"
+                      ? "text-primary"
                       : "text-muted hover:bg-elevated hover:text-fg",
                   ].join(" ")
                 }
               >
-                {label}
+                {({ isActive }) => (
+                  <>
+                    {label}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-3 right-3 h-px bg-primary rounded-full" />
+                    )}
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
         </ul>
 
-        {/* Hamburger button — visible below md only */}
+        {/* Hamburger — visible below md only */}
         <button
           type="button"
           aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
           aria-expanded={isOpen}
           onClick={() => setIsOpen(v => !v)}
-          className="md:hidden rounded-md p-2 text-muted hover:bg-elevated hover:text-fg transition-colors"
+          className="md:hidden flex h-9 w-9 items-center justify-center rounded-md border border-line text-muted transition-colors hover:border-primary/50 hover:text-fg"
         >
-          {isOpen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            {isOpen ? (
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            ) : (
               <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-          )}
+            )}
+          </svg>
         </button>
       </nav>
 
-      {/* Mobile dropdown — inside <header> so it pushes page content down naturally */}
+      {/* Mobile dropdown */}
       {isOpen && (
-        <div className="md:hidden border-t border-line bg-surface px-4 pb-3">
-          <ul className="flex flex-col gap-1 pt-2">
+        <div className="md:hidden border-t border-line bg-canvas/95 backdrop-blur-md px-4 pb-4">
+          <ul className="flex flex-col gap-1 pt-3">
             {NAV_LINKS.map(({ to, label }) => (
               <li key={to}>
                 <NavLink
@@ -78,9 +90,9 @@ export default function NavBar() {
                   onClick={() => setIsOpen(false)}
                   className={({ isActive }) =>
                     [
-                      "block rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      "flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-primary text-white"
+                        ? "border border-primary/30 bg-primary/10 text-primary"
                         : "text-muted hover:bg-elevated hover:text-fg",
                     ].join(" ")
                   }

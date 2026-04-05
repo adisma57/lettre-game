@@ -7,6 +7,18 @@ const SORT_OPTIONS: { value: LeaderboardSort; label: string }[] = [
   { value: "account_age", label: "Ancienneté"     },
 ];
 
+const RANK_BADGE: Record<number, string> = {
+  1: "bg-amber-500/20 border-amber-500/40 text-amber-400",
+  2: "bg-zinc-400/10 border-zinc-400/30 text-zinc-300",
+  3: "bg-orange-900/20 border-orange-800/30 text-orange-600",
+};
+
+const RANK_LABEL: Record<number, string> = {
+  1: "01",
+  2: "02",
+  3: "03",
+};
+
 export default function Leaderboard() {
   const [sort, setSort]       = useState<LeaderboardSort>("avg_score");
   const [rows, setRows]       = useState<LeaderboardEntry[]>([]);
@@ -24,20 +36,21 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-8 flex items-end justify-between gap-4">
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Classement</h1>
+          <h1 className="font-display text-3xl font-bold text-primary">Classement</h1>
           <p className="mt-1 text-sm text-muted">Meilleurs joueurs sur le défi du jour.</p>
         </div>
 
-        {/* Sort selector */}
+        {/* Sort pills */}
         <div className="flex gap-1 rounded-lg border border-line bg-surface p-1">
           {SORT_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setSort(value)}
               className={[
-                "rounded-md px-3 py-1 text-sm font-medium transition-colors",
+                "rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
                 sort === value
                   ? "bg-primary text-white"
                   : "text-muted hover:bg-elevated hover:text-fg",
@@ -49,56 +62,72 @@ export default function Leaderboard() {
         </div>
       </div>
 
+      {/* States */}
       {loading && (
         <p className="text-sm text-muted">Chargement…</p>
       )}
-
       {error && (
         <p className="text-sm text-error">{error}</p>
       )}
-
       {!loading && !error && rows.length === 0 && (
-        <p className="text-sm text-muted">
-          Aucune partie enregistrée pour l'instant. Jouez le défi du jour pour apparaître ici !
-        </p>
+        <div className="rounded-xl border border-line bg-surface p-8 text-center">
+          <p className="text-sm text-muted">
+            Aucune partie enregistrée pour l'instant.
+          </p>
+          <p className="mt-1 text-sm text-muted/60">
+            Jouez le défi du jour pour apparaître ici !
+          </p>
+        </div>
       )}
 
+      {/* Leaderboard rows */}
       {!loading && !error && rows.length > 0 && (
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
-              <th className="px-3 py-2 text-left">#</th>
-              <th className="px-3 py-2 text-left">Joueur</th>
-              <th className="px-3 py-2 text-right">Moy.</th>
-              <th className="px-3 py-2 text-right">Meilleur</th>
-              <th className="px-3 py-2 text-right">Parties</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.username}
-                className={row.rank === 1 ? "border-l-2 border-primary bg-elevated" : ""}
-              >
-                <td className="border-b border-line px-3 py-3 text-muted">
-                  {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
-                </td>
-                <td className="border-b border-line px-3 py-3 font-semibold text-fg">
-                  {row.username}
-                </td>
-                <td className="border-b border-line px-3 py-3 text-right font-bold text-primary">
-                  {row.avg_score}
-                </td>
-                <td className="border-b border-line px-3 py-3 text-right text-muted">
-                  {row.best_score}
-                </td>
-                <td className="border-b border-line px-3 py-3 text-right text-muted">
-                  {row.game_count}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="flex flex-col gap-2">
+          {/* Column headers */}
+          <div className="grid grid-cols-[3rem_1fr_5rem_5rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
+            <span>#</span>
+            <span>Joueur</span>
+            <span className="text-right">Moy.</span>
+            <span className="text-right">Best</span>
+            <span className="text-right">Parties</span>
+          </div>
+
+          {rows.map((row) => (
+            <div
+              key={row.username}
+              className={[
+                "grid grid-cols-[3rem_1fr_5rem_5rem_4rem] items-center rounded-xl border px-3 py-3.5 transition-colors",
+                row.rank === 1
+                  ? "border-primary/30 bg-primary/5"
+                  : "border-line bg-surface hover:bg-elevated",
+              ].join(" ")}
+            >
+              {/* Rank badge */}
+              <div className="flex items-center">
+                <span
+                  className={[
+                    "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold font-mono",
+                    RANK_BADGE[row.rank] ?? "border-line bg-elevated text-muted",
+                  ].join(" ")}
+                >
+                  {RANK_LABEL[row.rank] ?? String(row.rank).padStart(2, "0")}
+                </span>
+              </div>
+
+              {/* Username */}
+              <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
+
+              {/* Avg score */}
+              <span className="text-right font-mono font-bold text-primary">{row.avg_score}</span>
+
+              {/* Best score */}
+              <span className="text-right font-mono text-muted">{row.best_score}</span>
+
+              {/* Game count */}
+              <span className="text-right font-mono text-muted">{row.game_count}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

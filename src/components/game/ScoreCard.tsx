@@ -24,12 +24,13 @@ export function ScoreCard({
     total >= bestPossibleScore;
 
   return (
-    <div className={className}>
+    <div className={`rounded-xl border border-line bg-surface p-4 ${className}`}>
       {label && (
-        <p className="mb-1 text-xs uppercase tracking-wider text-muted">{label}</p>
+        <p className="mb-3 text-xs font-mono uppercase tracking-widest text-muted/70">{label}</p>
       )}
 
-      <div className="mb-1">
+      {/* Word display */}
+      <div className="mb-4 min-h-[2.5rem]">
         {score ? (
           <ColoredWord score={score} />
         ) : plainWord ? (
@@ -37,19 +38,29 @@ export function ScoreCard({
         ) : null}
       </div>
 
-      <p className="text-sm text-fg">
-        Votre score : <span className="font-semibold">{total} pts</span>
-      </p>
+      {/* Score row */}
+      <div className="flex items-center gap-4">
+        <div>
+          <p className="text-xs text-muted">Votre score</p>
+          <p className="font-display text-2xl font-bold text-primary">{total}<span className="ml-1 text-sm font-normal text-muted">pts</span></p>
+        </div>
 
-      {bestPossibleScore !== undefined && bestPossibleScore >= 0 && (
-        <p className="text-sm text-fg">
-          Meilleur possible :{" "}
-          <span className="font-semibold">{bestPossibleScore} pts</span>
-          {isPerfect && (
-            <span className="ml-2 font-semibold text-success">Score parfait !</span>
-          )}
-        </p>
-      )}
+        {bestPossibleScore !== undefined && bestPossibleScore >= 0 && (
+          <>
+            <div className="h-8 w-px bg-line" />
+            <div>
+              <p className="text-xs text-muted">Meilleur possible</p>
+              <p className="font-display text-2xl font-bold text-fg/60">{bestPossibleScore}<span className="ml-1 text-sm font-normal text-muted">pts</span></p>
+            </div>
+          </>
+        )}
+
+        {isPerfect && (
+          <span className="ml-auto rounded-full border border-success/30 bg-success/10 px-3 py-1 text-xs font-bold text-success">
+            Score parfait ✓
+          </span>
+        )}
+      </div>
     </div>
   );
 }

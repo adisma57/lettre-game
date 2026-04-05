@@ -1,33 +1,33 @@
 @import "tailwindcss";
 
-/* ─── Design tokens ─────────────────────────────────────────────────────────
-   All UI colours are defined here and consumed as Tailwind utilities:
-     --color-surface  →  bg-surface / text-surface / border-surface
-   Centralising them here ensures a single source of truth.          */
 @theme {
   /* Backgrounds */
-  --color-canvas:        #0f0f0f;   /* page background            */
-  --color-surface:       #1c1c1c;   /* card / panel               */
-  --color-elevated:      #252525;   /* hover state surface        */
+  --color-canvas:        #0d0d0d;
+  --color-surface:       #161616;
+  --color-elevated:      #1f1f1f;
 
   /* Borders */
-  --color-line:          #2e2e2e;
+  --color-line:          #2a2a2a;
 
   /* Text */
-  --color-fg:            #f5f5f5;
-  --color-muted:         #737373;
+  --color-fg:            #f0f0f0;
+  --color-muted:         #666666;
 
   /* Brand */
-  --color-primary:       #f97316;   /* orange-500                 */
-  --color-primary-dim:   #ea6c0a;   /* orange-600 — hover         */
+  --color-primary:       #f97316;
+  --color-primary-dim:   #ea6c0a;
 
   /* Semantic */
-  --color-success:       #16a34a;   /* green-600                  */
-  --color-error:         #dc2626;   /* red-600                    */
-  --color-info:          #2563eb;   /* blue-600                   */
+  --color-success:       #22c55e;
+  --color-error:         #ef4444;
+  --color-info:          #3b82f6;
+
+  /* Typography */
+  --font-display: "Syne", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
 }
 
-/* ─── Base layer ────────────────────────────────────────────────────────── */
+/* ─── Base layer ─────────────────────────────────────────────────────────── */
 @layer base {
   html {
     color-scheme: dark;
@@ -35,6 +35,94 @@
 
   body {
     @apply bg-canvas text-fg antialiased;
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: "Syne", system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* Subtle orange warmth radiating from top-left */
+    background-image:
+      radial-gradient(ellipse 70% 40% at 10% -10%, rgba(249, 115, 22, 0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 30% at 90% 110%, rgba(249, 115, 22, 0.04) 0%, transparent 50%);
+  }
+
+  /* Smooth focus outline for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid #f97316;
+    outline-offset: 2px;
+  }
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Tile entrance: drop in from top with slight bounce */
+  @keyframes tile-drop {
+    0%   { opacity: 0; transform: translateY(-10px) scale(0.9); }
+    70%  { transform: translateY(2px) scale(1.02); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Fade up — used for page sections */
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Subtle pulse for the active tile glow */
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(249, 115, 22, 0.12); }
+    50%       { box-shadow: 0 0 22px rgba(249, 115, 22, 0.22); }
+  }
+
+  /* Shine sweep across buttons */
+  @keyframes shine {
+    from { transform: translateX(-100%) skewX(-15deg); }
+    to   { transform: translateX(200%) skewX(-15deg); }
+  }
+
+  .animate-tile-drop {
+    animation: tile-drop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.4s ease both;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2.5s ease-in-out infinite;
+  }
+
+  /* Stagger helpers */
+  .delay-75  { animation-delay: 75ms;  }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-225 { animation-delay: 225ms; }
+  .delay-300 { animation-delay: 300ms; }
+
+  /* Tile glow: a crisp orange ring + diffuse ambient */
+  .tile-glow {
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.25),
+      0 0 18px rgba(249, 115, 22, 0.10);
+  }
+
+  /* Button shine overlay — applied to primary buttons */
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shine::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.12),
+      transparent
+    );
+    transform: translateX(-150%) skewX(-15deg);
+    transition: none;
+  }
+  .btn-shine:hover::after {
+    animation: shine 0.55s ease forwards;
   }
 }
