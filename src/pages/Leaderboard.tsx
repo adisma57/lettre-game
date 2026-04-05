@@ -83,8 +83,8 @@ export default function Leaderboard() {
       {/* Leaderboard rows */}
       {!loading && !error && rows.length > 0 && (
         <div className="flex flex-col gap-2">
-          {/* Column headers */}
-          <div className="grid grid-cols-[3rem_1fr_5rem_5rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
+          {/* Column headers — hidden on mobile, shown on sm+ */}
+          <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_5rem_5rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
             <span>#</span>
             <span>Joueur</span>
             <span className="text-right">Moy.</span>
@@ -96,35 +96,70 @@ export default function Leaderboard() {
             <div
               key={row.username}
               className={[
-                "grid grid-cols-[3rem_1fr_5rem_5rem_4rem] items-center rounded-xl border px-3 py-3.5 transition-colors",
+                "rounded-xl border px-3 py-3 transition-colors",
                 row.rank === 1
                   ? "border-primary/30 bg-primary/5"
                   : "border-line bg-surface hover:bg-elevated",
               ].join(" ")}
             >
-              {/* Rank badge */}
-              <div className="flex items-center">
+              {/* Mobile layout */}
+              <div className="flex items-center gap-3 sm:hidden">
+                {/* Rank badge */}
                 <span
                   className={[
-                    "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold font-mono",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-bold font-mono",
                     RANK_BADGE[row.rank] ?? "border-line bg-elevated text-muted",
                   ].join(" ")}
                 >
                   {RANK_LABEL[row.rank] ?? String(row.rank).padStart(2, "0")}
                 </span>
+
+                {/* Username */}
+                <span className="flex-1 min-w-0 font-semibold text-fg truncate">{row.username}</span>
+
+                {/* Stats */}
+                <div className="flex items-center gap-3 shrink-0 text-xs font-mono">
+                  <div className="flex flex-col items-center">
+                    <span className="font-bold text-primary text-sm">{row.avg_score}</span>
+                    <span className="text-muted/60 uppercase tracking-wide text-[10px]">moy.</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-muted">{row.best_score}</span>
+                    <span className="text-muted/60 uppercase tracking-wide text-[10px]">best</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-muted">{row.game_count}</span>
+                    <span className="text-muted/60 uppercase tracking-wide text-[10px]">parties</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Username */}
-              <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
+              {/* Desktop layout */}
+              <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_5rem_5rem_4rem] items-center">
+                {/* Rank badge */}
+                <div className="flex items-center">
+                  <span
+                    className={[
+                      "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold font-mono",
+                      RANK_BADGE[row.rank] ?? "border-line bg-elevated text-muted",
+                    ].join(" ")}
+                  >
+                    {RANK_LABEL[row.rank] ?? String(row.rank).padStart(2, "0")}
+                  </span>
+                </div>
 
-              {/* Avg score */}
-              <span className="text-right font-mono font-bold text-primary">{row.avg_score}</span>
+                {/* Username */}
+                <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
 
-              {/* Best score */}
-              <span className="text-right font-mono text-muted">{row.best_score}</span>
+                {/* Avg score */}
+                <span className="text-right font-mono font-bold text-primary">{row.avg_score}</span>
 
-              {/* Game count */}
-              <span className="text-right font-mono text-muted">{row.game_count}</span>
+                {/* Best score */}
+                <span className="text-right font-mono text-muted">{row.best_score}</span>
+
+                {/* Game count */}
+                <span className="text-right font-mono text-muted">{row.game_count}</span>
+              </div>
             </div>
           ))}
         </div>
