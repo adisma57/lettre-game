@@ -123,12 +123,13 @@ export function useDailyGame(): GameState {
     if (nextPhase.kind === "completed") {
       const username = localStorage.getItem(AUTH_STORAGE_KEY);
       if (username) {
+        const bestAttemptScore = Math.max(...newAttempts.map(a => a.total));
         submitScore({
           username,
-          date:         todayKey,
-          score:        result.total,
+          date:          todayKey,
+          score:         bestAttemptScore,
           best_possible: newBestScore,
-          attempts:     newAttempts.length,
+          attempts:      newAttempts.length,
         });
       }
     }
