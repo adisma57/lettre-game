@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { fetchLeaderboard, type LeaderboardEntry, type LeaderboardSort } from "../services/api";
 
 const SORT_OPTIONS: { value: LeaderboardSort; label: string }[] = [
-  { value: "avg_score",   label: "Score moyen"   },
-  { value: "game_count",  label: "Parties jouées" },
-  { value: "account_age", label: "Ancienneté"     },
+  { value: "total_score",  label: "Score total"   },
+  { value: "game_count",   label: "Parties jouées" },
+  { value: "account_age",  label: "Ancienneté"     },
 ];
 
 export default function Leaderboard() {
-  const [sort, setSort]       = useState<LeaderboardSort>("avg_score");
+  const [sort, setSort]       = useState<LeaderboardSort>("total_score");
   const [rows, setRows]       = useState<LeaderboardEntry[]>([]);
+  const currentUsername = localStorage.getItem("auth_username");
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
@@ -69,34 +70,45 @@ export default function Leaderboard() {
             <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
               <th className="px-3 py-2 text-left">#</th>
               <th className="px-3 py-2 text-left">Joueur</th>
-              <th className="px-3 py-2 text-right">Moy.</th>
+              <th className="px-3 py-2 text-right">Total</th>
               <th className="px-3 py-2 text-right">Meilleur</th>
               <th className="px-3 py-2 text-right">Parties</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.username}
-                className={row.rank === 1 ? "border-l-2 border-primary bg-elevated" : ""}
-              >
-                <td className="border-b border-line px-3 py-3 text-muted">
-                  {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
-                </td>
-                <td className="border-b border-line px-3 py-3 font-semibold text-fg">
-                  {row.username}
-                </td>
-                <td className="border-b border-line px-3 py-3 text-right font-bold text-primary">
-                  {row.avg_score}
-                </td>
-                <td className="border-b border-line px-3 py-3 text-right text-muted">
-                  {row.best_score}
-                </td>
-                <td className="border-b border-line px-3 py-3 text-right text-muted">
-                  {row.game_count}
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const isCurrentUser =
+                currentUsername != null &&
+                row.username.toLowerCase() === currentUsername.toLowerCase();
+              return (
+                <tr
+                  key={row.username}
+                  className={
+                    isCurrentUser
+                      ? "border-l-2 border-info bg-elevated"
+                      : row.rank === 1
+                        ? "border-l-2 border-primary bg-elevated"
+                        : ""
+                  }
+                >
+                  <td className="border-b border-line px-3 py-3 text-muted">
+                    {row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : row.rank}
+                  </td>
+                  <td className="border-b border-line px-3 py-3 font-semibold text-fg">
+                    {row.username}
+                  </td>
+                  <td className="border-b border-line px-3 py-3 text-right font-bold text-primary">
+                    {row.total_score}
+                  </td>
+                  <td className="border-b border-line px-3 py-3 text-right text-muted">
+                    {row.best_score}
+                  </td>
+                  <td className="border-b border-line px-3 py-3 text-right text-muted">
+                    {row.game_count}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
