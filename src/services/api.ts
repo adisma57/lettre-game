@@ -60,12 +60,12 @@ export async function submitScore(payload: {
 
 // ─── GET /api/leaderboard ─────────────────────────────────────────────────────
 
-export type LeaderboardSort = "avg_score" | "game_count" | "account_age";
+export type LeaderboardSort = "total_score" | "game_count" | "account_age";
 
 export type LeaderboardEntry = {
   rank: number;
   username: string;
-  avg_score: number;
+  total_score: number;
   game_count: number;
   best_score: number;
   created_at: string;
