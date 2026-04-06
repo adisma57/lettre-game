@@ -114,14 +114,14 @@ app.post("/scores", withDb, async (c) => {
 
 // ─── GET /api/leaderboard ─────────────────────────────────────────────────────
 
-type SortKey = "avg_score" | "game_count" | "account_age";
+type SortKey = "total_score" | "game_count" | "account_age";
 
 app.get("/leaderboard", withDb, async (c) => {
-  const sortParam = (c.req.query("sort") ?? "avg_score") as SortKey;
+  const sortParam = (c.req.query("sort") ?? "total_score") as SortKey;
   const sort: SortKey =
     sortParam === "game_count" || sortParam === "account_age"
       ? sortParam
-      : "avg_score";
+      : "total_score";
 
   const ranked = await getLeaderboard(sort);
   return c.json(ranked);
