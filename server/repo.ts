@@ -69,7 +69,7 @@ const mem = {
 export type LeaderboardRow = {
   rank: number;
   username: string;
-  avg_score: number;
+  total_score: number;
   game_count: number;
   best_score: number;
   created_at: string;
@@ -174,7 +174,7 @@ export async function insertScoreIfAbsent(
 const LEADERBOARD_BASE = `
   SELECT
     u.username,
-    ROUND(AVG(s.score)::numeric, 1)::float8 AS avg_score,
+    SUM(s.score)::int                   AS total_score,
     COUNT(*)::int                       AS game_count,
     MAX(s.score)                        AS best_score,
     u.created_at                        AS created_at
@@ -184,7 +184,7 @@ const LEADERBOARD_BASE = `
 `;
 
 export async function getLeaderboard(
-  sort: "avg_score" | "game_count" | "account_age",
+  sort: "total_score" | "game_count" | "account_age",
 ): Promise<LeaderboardRow[]> {
   if (isMemoryBackend()) {
     const byUser = new Map<
@@ -206,7 +206,7 @@ export async function getLeaderboard(
       const sum = v.scores.reduce((a, b) => a + b, 0);
       rows.push({
         username: v.username,
-        avg_score: Math.round((sum / v.scores.length) * 10) / 10,
+        total_score: sum,
         game_count: v.scores.length,
         best_score: Math.max(...v.scores),
         created_at: v.createdAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
@@ -216,13 +216,13 @@ export async function getLeaderboard(
     const cmp =
       sort === "game_count"
         ? (a: Row, b: Row) =>
-            b.game_count - a.game_count || b.avg_score - a.avg_score
+            b.game_count - a.game_count || b.total_score - a.total_score
         : sort === "account_age"
           ? (a: Row, b: Row) =>
               a.created_at.localeCompare(b.created_at) ||
               b.game_count - a.game_count
           : (a: Row, b: Row) =>
-              b.avg_score - a.avg_score || b.game_count - a.game_count;
+              b.total_score - a.total_score || b.game_count - a.game_count;
 
     rows.sort(cmp);
     return rows.map((r, i) => ({ rank: i + 1, ...r }));
@@ -235,7 +235,7 @@ export async function getLeaderboard(
   let raw: Row[];
   if (sort === "game_count") {
     raw = (await sql.query(
-      `${LEADERBOARD_BASE} ORDER BY game_count DESC, avg_score DESC`,
+      `${LEADERBOARD_BASE} ORDER BY game_count DESC, total_score DESC`,
     )) as Row[];
   } else if (sort === "account_age") {
     raw = (await sql.query(
@@ -243,14 +243,14 @@ export async function getLeaderboard(
     )) as Row[];
   } else {
     raw = (await sql.query(
-      `${LEADERBOARD_BASE} ORDER BY avg_score DESC, game_count DESC`,
+      `${LEADERBOARD_BASE} ORDER BY total_score DESC, game_count DESC`,
     )) as Row[];
   }
 
   return raw.map((r, i) => ({
     rank: i + 1,
     username: r.username,
-    avg_score: r.avg_score,
+    total_score: r.total_score,
     game_count: r.game_count,
     best_score: r.best_score,
     created_at:
