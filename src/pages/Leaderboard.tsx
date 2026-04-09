@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { fetchLeaderboard, type LeaderboardEntry, type LeaderboardSort } from "../services/api";
 
 const SORT_OPTIONS: { value: LeaderboardSort; label: string }[] = [
-  { value: "weekly",  label: "Classement hebdomadaire" },
-  { value: "monthly", label: "Classement mensuel"      },
-  { value: "global",  label: "Classement global"       },
+  { value: "weekly",  label: "Hebdomadaire" },
+  { value: "monthly", label: "Mensuel"      },
+  { value: "global",  label: "Global"       },
 ];
 
 const RANK_BADGE: Record<number, string> = {
