@@ -72,7 +72,7 @@ export type LeaderboardEntry = {
 };
 
 export async function fetchLeaderboard(
-  sort: LeaderboardSort = "total_score",
+  sort: LeaderboardSort = "weekly",
 ): Promise<LeaderboardEntry[]> {
   const res = await fetch(`${BASE}/api/leaderboard?sort=${sort}`);
   if (!res.ok) {
