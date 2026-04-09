@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { fetchLeaderboard, type LeaderboardEntry, type LeaderboardSort } from "../services/api";
 
 const SORT_OPTIONS: { value: LeaderboardSort; label: string }[] = [
-  { value: "total_score",  label: "Score total"   },
-  { value: "game_count",   label: "Parties jouées" },
-  { value: "account_age",  label: "Ancienneté"     },
+  { value: "weekly",  label: "Classement hebdomadaire" },
+  { value: "monthly", label: "Classement mensuel"      },
+  { value: "global",  label: "Classement global"       },
 ];
 
 const RANK_BADGE: Record<number, string> = {
@@ -20,7 +20,7 @@ const RANK_LABEL: Record<number, string> = {
 };
 
 export default function Leaderboard() {
-  const [sort, setSort]       = useState<LeaderboardSort>("total_score");
+  const [sort, setSort]       = useState<LeaderboardSort>("weekly");
   const [rows, setRows]       = useState<LeaderboardEntry[]>([]);
   const currentUsername = localStorage.getItem("auth_username");
   const [loading, setLoading] = useState(true);

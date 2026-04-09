@@ -60,7 +60,7 @@ export async function submitScore(payload: {
 
 // ─── GET /api/leaderboard ─────────────────────────────────────────────────────
 
-export type LeaderboardSort = "total_score" | "game_count" | "account_age";
+export type LeaderboardSort = "weekly" | "monthly" | "global";
 
 export type LeaderboardEntry = {
   rank: number;

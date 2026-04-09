@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { solveTopN, type SolverResult } from "../engine/solver";
 import { mainDictionary } from "../engine/mainDictionary";
+import { getDailyDraw } from "../engine/draw";
 import { DrawInput } from "../components/game/DrawInput";
 import { SolverResultsTable } from "../components/game/SolverResults";
 import { Button } from "../components/ui/Button";
 import type { Draw } from "../engine/types";
+
+const dailyDraw = getDailyDraw();
+const dailyDrawSorted = [...dailyDraw].sort().join("");
+
+function isDailyDrawInput(letters: string[]): boolean {
+  if (letters.some((l) => l === "")) return false;
+  return [...letters].map((l) => l.toUpperCase()).sort().join("") === dailyDrawSorted;
+}
 
 export default function Solver() {
   const [letters, setLetters] = useState<string[]>(["", "", "", ""]);
@@ -12,7 +21,8 @@ export default function Solver() {
   const [results, setResults] = useState<SolverResult[] | null>(null);
 
   const hasAnyLetter = letters.some((l) => l !== "");
-  const canAnalyse   = letters.every((l) => l !== "");
+  const isDaily      = isDailyDrawInput(letters);
+  const canAnalyse   = letters.every((l) => l !== "") && !isDaily;
 
   function handleLetterChange(index: number, value: string) {
     setLetters((prev) => {
@@ -48,6 +58,12 @@ export default function Solver() {
           Analyser
         </Button>
       </div>
+
+      {isDaily && (
+        <p className="mt-3 text-sm text-error">
+          Ce tirage correspond au défi du jour — utilise le solveur uniquement sur d'autres tirages.
+        </p>
+      )}
 
       {hasAnyLetter && (
         <Button variant="ghost" onClick={handleReset} className="mt-2">

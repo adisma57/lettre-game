@@ -114,14 +114,14 @@ app.post("/scores", withDb, async (c) => {
 
 // ─── GET /api/leaderboard ─────────────────────────────────────────────────────
 
-type SortKey = "total_score" | "game_count" | "account_age";
+type SortKey = "weekly" | "monthly" | "global";
 
 app.get("/leaderboard", withDb, async (c) => {
-  const sortParam = (c.req.query("sort") ?? "total_score") as SortKey;
+  const sortParam = (c.req.query("sort") ?? "weekly") as SortKey;
   const sort: SortKey =
-    sortParam === "game_count" || sortParam === "account_age"
+    sortParam === "monthly" || sortParam === "global"
       ? sortParam
-      : "total_score";
+      : "weekly";
 
   const ranked = await getLeaderboard(sort);
   return c.json(ranked);

@@ -171,7 +171,24 @@ export async function insertScoreIfAbsent(
   `;
 }
 
-const LEADERBOARD_BASE = `
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+/** Returns the ISO date string (YYYY-MM-DD) of the Monday of the current UTC week. */
+function currentWeekMondayUtc(): string {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 1=Mon, …, 6=Sat
+  const diff = day === 0 ? 6 : day - 1; // days since Monday
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff));
+  return monday.toISOString().slice(0, 10);
+}
+
+/** Returns the ISO date string of the first day of the current UTC month. */
+function currentMonthStartUtc(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+const LEADERBOARD_SELECT = `
   SELECT
     u.username,
     SUM(s.score)::int                   AS total_score,
@@ -180,13 +197,20 @@ const LEADERBOARD_BASE = `
     u.created_at                        AS created_at
   FROM scores s
   JOIN users u ON u.id = s.user_id
-  GROUP BY u.id, u.username, u.created_at
 `;
+const LEADERBOARD_GROUPBY = `GROUP BY u.id, u.username, u.created_at`;
 
 export async function getLeaderboard(
-  sort: "total_score" | "game_count" | "account_age",
+  sort: "weekly" | "monthly" | "global",
 ): Promise<LeaderboardRow[]> {
   if (isMemoryBackend()) {
+    const minDate =
+      sort === "weekly"
+        ? currentWeekMondayUtc()
+        : sort === "monthly"
+          ? currentMonthStartUtc()
+          : null;
+
     const byUser = new Map<
       number,
       { username: string; createdAt: Date; scores: number[] }
@@ -195,6 +219,7 @@ export async function getLeaderboard(
       byUser.set(u.id, { username: u.username, createdAt: u.createdAt, scores: [] });
     }
     for (const s of mem.scores) {
+      if (minDate !== null && s.date < minDate) continue;
       const entry = byUser.get(s.userId);
       if (entry) entry.scores.push(s.score);
     }
@@ -213,18 +238,7 @@ export async function getLeaderboard(
       });
     }
 
-    const cmp =
-      sort === "game_count"
-        ? (a: Row, b: Row) =>
-            b.game_count - a.game_count || b.total_score - a.total_score
-        : sort === "account_age"
-          ? (a: Row, b: Row) =>
-              a.created_at.localeCompare(b.created_at) ||
-              b.game_count - a.game_count
-          : (a: Row, b: Row) =>
-              b.total_score - a.total_score || b.game_count - a.game_count;
-
-    rows.sort(cmp);
+    rows.sort((a, b) => b.total_score - a.total_score || b.game_count - a.game_count);
     return rows.map((r, i) => ({ rank: i + 1, ...r }));
   }
 
@@ -232,20 +246,18 @@ export async function getLeaderboard(
   type Row = Omit<Omit<LeaderboardRow, "rank">, "created_at"> & {
     created_at: Date | string;
   };
-  let raw: Row[];
-  if (sort === "game_count") {
-    raw = (await sql.query(
-      `${LEADERBOARD_BASE} ORDER BY game_count DESC, total_score DESC`,
-    )) as Row[];
-  } else if (sort === "account_age") {
-    raw = (await sql.query(
-      `${LEADERBOARD_BASE} ORDER BY created_at ASC, game_count DESC`,
-    )) as Row[];
-  } else {
-    raw = (await sql.query(
-      `${LEADERBOARD_BASE} ORDER BY total_score DESC, game_count DESC`,
-    )) as Row[];
-  }
+
+  // DATE_TRUNC('week', …) in PostgreSQL uses ISO weeks (Monday start).
+  const whereClause =
+    sort === "weekly"
+      ? `WHERE s.date::date >= DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')::date`
+      : sort === "monthly"
+        ? `WHERE s.date::date >= DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')::date`
+        : "";
+
+  const raw = (await sql.query(
+    `${LEADERBOARD_SELECT} ${whereClause} ${LEADERBOARD_GROUPBY} ORDER BY total_score DESC, game_count DESC`,
+  )) as Row[];
 
   return raw.map((r, i) => ({
     rank: i + 1,
