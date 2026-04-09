@@ -45,13 +45,13 @@ export default function Leaderboard() {
         </div>
 
         {/* Sort pills */}
-        <div className="flex gap-1 rounded-lg border border-line bg-surface p-1">
+        <div className="flex w-full gap-1 rounded-lg border border-line bg-surface p-1 sm:w-auto">
           {SORT_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setSort(value)}
               className={[
-                "rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
+                "flex-1 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors text-center",
                 sort === value
                   ? "bg-primary text-white"
                   : "text-muted hover:bg-elevated hover:text-fg",
