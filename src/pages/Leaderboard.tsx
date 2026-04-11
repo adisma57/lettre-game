@@ -85,18 +85,28 @@ export default function Leaderboard() {
       {!loading && !error && rows.length > 0 && (
         <div className="flex flex-col gap-2">
           {/* Column headers — hidden on mobile, shown on sm+ */}
-          <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_5rem_5rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
-            <span>#</span>
-            <span>Joueur</span>
-            <span className="text-right">Total</span>
-            <span className="text-right">Best</span>
-            <span className="text-right">Parties</span>
-          </div>
+          {sort === "global" ? (
+            <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_6rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
+              <span>#</span>
+              <span>Joueur</span>
+              <span className="text-right">Précision</span>
+              <span className="text-right">Parties</span>
+            </div>
+          ) : (
+            <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_5rem_5rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
+              <span>#</span>
+              <span>Joueur</span>
+              <span className="text-right">Total</span>
+              <span className="text-right">Best</span>
+              <span className="text-right">Parties</span>
+            </div>
+          )}
 
           {rows.map((row) => {
             const isCurrentUser =
               currentUsername != null &&
               row.username.toLowerCase() === currentUsername.toLowerCase();
+            const accuracyLabel = `${(row.avg_accuracy * 100).toFixed(1)} %`;
             return (
               <div
                 key={row.username}
@@ -126,14 +136,23 @@ export default function Leaderboard() {
 
                   {/* Stats */}
                   <div className="flex items-center gap-3 shrink-0 text-xs font-mono">
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold text-primary text-sm">{row.total_score}</span>
-                      <span className="text-muted/60 uppercase tracking-wide text-[10px]">total</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted">{row.best_score}</span>
-                      <span className="text-muted/60 uppercase tracking-wide text-[10px]">best</span>
-                    </div>
+                    {sort === "global" ? (
+                      <div className="flex flex-col items-center">
+                        <span className="font-bold text-primary text-sm">{accuracyLabel}</span>
+                        <span className="text-muted/60 uppercase tracking-wide text-[10px]">précision</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-primary text-sm">{row.total_score}</span>
+                          <span className="text-muted/60 uppercase tracking-wide text-[10px]">total</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-muted">{row.best_score}</span>
+                          <span className="text-muted/60 uppercase tracking-wide text-[10px]">best</span>
+                        </div>
+                      </>
+                    )}
                     <div className="flex flex-col items-center">
                       <span className="text-muted">{row.game_count}</span>
                       <span className="text-muted/60 uppercase tracking-wide text-[10px]">parties</span>
@@ -142,31 +161,40 @@ export default function Leaderboard() {
                 </div>
 
                 {/* Desktop layout */}
-                <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_5rem_5rem_4rem] items-center">
-                  {/* Rank badge */}
-                  <div className="flex items-center">
-                    <span
-                      className={[
-                        "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold font-mono",
-                        RANK_BADGE[row.rank] ?? "border-line bg-elevated text-muted",
-                      ].join(" ")}
-                    >
-                      {RANK_LABEL[row.rank] ?? String(row.rank).padStart(2, "0")}
-                    </span>
+                {sort === "global" ? (
+                  <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_6rem_4rem] items-center">
+                    <div className="flex items-center">
+                      <span
+                        className={[
+                          "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold font-mono",
+                          RANK_BADGE[row.rank] ?? "border-line bg-elevated text-muted",
+                        ].join(" ")}
+                      >
+                        {RANK_LABEL[row.rank] ?? String(row.rank).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
+                    <span className="text-right font-mono font-bold text-primary">{accuracyLabel}</span>
+                    <span className="text-right font-mono text-muted">{row.game_count}</span>
                   </div>
-
-                  {/* Username */}
-                  <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
-
-                  {/* Total score */}
-                  <span className="text-right font-mono font-bold text-primary">{row.total_score}</span>
-
-                  {/* Best score */}
-                  <span className="text-right font-mono text-muted">{row.best_score}</span>
-
-                  {/* Game count */}
-                  <span className="text-right font-mono text-muted">{row.game_count}</span>
-                </div>
+                ) : (
+                  <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_5rem_5rem_4rem] items-center">
+                    <div className="flex items-center">
+                      <span
+                        className={[
+                          "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold font-mono",
+                          RANK_BADGE[row.rank] ?? "border-line bg-elevated text-muted",
+                        ].join(" ")}
+                      >
+                        {RANK_LABEL[row.rank] ?? String(row.rank).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
+                    <span className="text-right font-mono font-bold text-primary">{row.total_score}</span>
+                    <span className="text-right font-mono text-muted">{row.best_score}</span>
+                    <span className="text-right font-mono text-muted">{row.game_count}</span>
+                  </div>
+                )}
               </div>
             );
           })}

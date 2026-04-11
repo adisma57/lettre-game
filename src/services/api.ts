@@ -68,6 +68,7 @@ export type LeaderboardEntry = {
   total_score: number;
   game_count: number;
   best_score: number;
+  avg_accuracy: number;  // 0.0–1.0 (global uniquement, 0 pour hebdo/mensuel)
   created_at: string;
 };
 
