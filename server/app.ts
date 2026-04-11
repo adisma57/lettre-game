@@ -7,6 +7,7 @@ import {
   getLeaderboard,
   insertScoreIfAbsent,
   insertUser,
+  upsertDailyPuzzle,
   usernameExists,
 } from "./repo.js";
 
@@ -107,6 +108,7 @@ app.post("/scores", withDb, async (c) => {
     return c.json({ error: "Valeurs hors limites." }, 400);
   }
 
+  await upsertDailyPuzzle(date, best_possible);
   await insertScoreIfAbsent(userId, date, score, best_possible, attempts);
 
   return c.json({ ok: true });

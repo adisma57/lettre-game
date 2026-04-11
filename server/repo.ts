@@ -64,14 +64,16 @@ const mem = {
   usersById: new Map<number, MemUser>(),
   lowerToId: new Map<string, number>(),
   scores: [] as MemScore[],
+  dailyPuzzles: new Map<string, number>(),
 };
 
 export type LeaderboardRow = {
   rank: number;
   username: string;
-  total_score: number;
+  total_score: number;   // hebdo + mensuel (0 pour global)
   game_count: number;
-  best_score: number;
+  best_score: number;    // hebdo + mensuel (0 pour global)
+  avg_accuracy: number;  // global uniquement (0.0–1.0), 0 pour hebdo/mensuel
   created_at: string;
 };
 
@@ -107,6 +109,13 @@ export async function ensureSchema(): Promise<void> {
       best_possible  INTEGER NOT NULL,
       attempts       INTEGER NOT NULL,
       UNIQUE (user_id, date)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS daily_puzzles (
+      date          TEXT    NOT NULL PRIMARY KEY,
+      best_possible INTEGER NOT NULL
     )
   `;
 }
@@ -171,6 +180,23 @@ export async function insertScoreIfAbsent(
   `;
 }
 
+export async function upsertDailyPuzzle(
+  date: string,
+  best_possible: number,
+): Promise<void> {
+  if (isMemoryBackend()) {
+    if (!mem.dailyPuzzles.has(date)) mem.dailyPuzzles.set(date, best_possible);
+    return;
+  }
+
+  const sql = getNeon();
+  await sql`
+    INSERT INTO daily_puzzles (date, best_possible)
+    VALUES (${date}, ${best_possible})
+    ON CONFLICT (date) DO NOTHING
+  `;
+}
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
 /** Returns the ISO date string (YYYY-MM-DD) of the Monday of the current UTC week. */
@@ -204,12 +230,44 @@ export async function getLeaderboard(
   sort: "weekly" | "monthly" | "global",
 ): Promise<LeaderboardRow[]> {
   if (isMemoryBackend()) {
+    if (sort === "global") {
+      const byUser = new Map<
+        number,
+        { username: string; createdAt: Date; accuracies: number[] }
+      >();
+      for (const u of mem.usersById.values()) {
+        byUser.set(u.id, { username: u.username, createdAt: u.createdAt, accuracies: [] });
+      }
+      for (const s of mem.scores) {
+        const entry = byUser.get(s.userId);
+        if (!entry) continue;
+        const bp = mem.dailyPuzzles.get(s.date) ?? s.best_possible;
+        const accuracy = bp > 0 ? s.score / bp : 0;
+        entry.accuracies.push(accuracy);
+      }
+
+      type Row = Omit<LeaderboardRow, "rank">;
+      const rows: Row[] = [];
+      for (const [, v] of byUser) {
+        if (v.accuracies.length === 0) continue;
+        const avg = v.accuracies.reduce((a, b) => a + b, 0) / v.accuracies.length;
+        rows.push({
+          username: v.username,
+          total_score: 0,
+          game_count: v.accuracies.length,
+          best_score: 0,
+          avg_accuracy: avg,
+          created_at: v.createdAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
+        });
+      }
+      rows.sort((a, b) => b.avg_accuracy - a.avg_accuracy || b.game_count - a.game_count);
+      return rows.map((r, i) => ({ rank: i + 1, ...r }));
+    }
+
     const minDate =
       sort === "weekly"
         ? currentWeekMondayUtc()
-        : sort === "monthly"
-          ? currentMonthStartUtc()
-          : null;
+        : currentMonthStartUtc();
 
     const byUser = new Map<
       number,
@@ -219,7 +277,7 @@ export async function getLeaderboard(
       byUser.set(u.id, { username: u.username, createdAt: u.createdAt, scores: [] });
     }
     for (const s of mem.scores) {
-      if (minDate !== null && s.date < minDate) continue;
+      if (s.date < minDate) continue;
       const entry = byUser.get(s.userId);
       if (entry) entry.scores.push(s.score);
     }
@@ -234,6 +292,7 @@ export async function getLeaderboard(
         total_score: sum,
         game_count: v.scores.length,
         best_score: Math.max(...v.scores),
+        avg_accuracy: 0,
         created_at: v.createdAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
       });
     }
@@ -243,21 +302,50 @@ export async function getLeaderboard(
   }
 
   const sql = getNeon();
-  type Row = Omit<Omit<LeaderboardRow, "rank">, "created_at"> & {
+  type RawRow = Omit<Omit<LeaderboardRow, "rank">, "created_at"> & {
     created_at: Date | string;
   };
+
+  function formatCreatedAt(v: Date | string): string {
+    return v instanceof Date ? v.toISOString().replace(/\.\d{3}Z$/, "Z") : String(v);
+  }
+
+  if (sort === "global") {
+    const raw = (await sql.query(`
+      SELECT
+        u.username,
+        0::int         AS total_score,
+        COUNT(*)::int  AS game_count,
+        0              AS best_score,
+        AVG(s.score::float / NULLIF(COALESCE(dp.best_possible, s.best_possible), 0)) AS avg_accuracy,
+        u.created_at
+      FROM scores s
+      JOIN users u ON u.id = s.user_id
+      LEFT JOIN daily_puzzles dp ON dp.date = s.date
+      GROUP BY u.id, u.username, u.created_at
+      ORDER BY avg_accuracy DESC, game_count DESC
+    `)) as RawRow[];
+
+    return raw.map((r, i) => ({
+      rank: i + 1,
+      username: r.username,
+      total_score: 0,
+      game_count: r.game_count,
+      best_score: 0,
+      avg_accuracy: typeof r.avg_accuracy === "string" ? parseFloat(r.avg_accuracy) : (r.avg_accuracy ?? 0),
+      created_at: formatCreatedAt(r.created_at),
+    }));
+  }
 
   // DATE_TRUNC('week', …) in PostgreSQL uses ISO weeks (Monday start).
   const whereClause =
     sort === "weekly"
       ? `WHERE s.date::date >= DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')::date`
-      : sort === "monthly"
-        ? `WHERE s.date::date >= DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')::date`
-        : "";
+      : `WHERE s.date::date >= DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')::date`;
 
   const raw = (await sql.query(
     `${LEADERBOARD_SELECT} ${whereClause} ${LEADERBOARD_GROUPBY} ORDER BY total_score DESC, game_count DESC`,
-  )) as Row[];
+  )) as RawRow[];
 
   return raw.map((r, i) => ({
     rank: i + 1,
@@ -265,10 +353,8 @@ export async function getLeaderboard(
     total_score: r.total_score,
     game_count: r.game_count,
     best_score: r.best_score,
-    created_at:
-      r.created_at instanceof Date
-        ? r.created_at.toISOString().replace(/\.\d{3}Z$/, "Z")
-        : String(r.created_at),
+    avg_accuracy: 0,
+    created_at: formatCreatedAt(r.created_at),
   }));
 }
 
