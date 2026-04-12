@@ -70,10 +70,11 @@ const mem = {
 export type LeaderboardRow = {
   rank: number;
   username: string;
-  total_score: number;   // hebdo + mensuel (0 pour global)
+  total_score: number;          // hebdo + mensuel (0 pour global)
   game_count: number;
-  best_score: number;    // hebdo + mensuel (0 pour global)
-  avg_accuracy: number;  // global uniquement (0.0–1.0), 0 pour hebdo/mensuel
+  best_score: number;           // hebdo + mensuel (0 pour global)
+  avg_accuracy: number;         // global: précision brute [0, 1]; 0 pour hebdo/mensuel
+  bayesian_accuracy: number;    // global: précision bayésienne [0, 1]; 0 pour hebdo/mensuel
   created_at: string;
 };
 
@@ -231,6 +232,8 @@ export async function getLeaderboard(
 ): Promise<LeaderboardRow[]> {
   if (isMemoryBackend()) {
     if (sort === "global") {
+      // Build per-score accuracy list
+      const allAccuracies: number[] = [];
       const byUser = new Map<
         number,
         { username: string; createdAt: Date; accuracies: number[] }
@@ -242,25 +245,37 @@ export async function getLeaderboard(
         const entry = byUser.get(s.userId);
         if (!entry) continue;
         const bp = mem.dailyPuzzles.get(s.date) ?? s.best_possible;
-        const accuracy = bp > 0 ? s.score / bp : 0;
+        if (bp <= 0) continue;
+        const accuracy = s.score / bp;
         entry.accuracies.push(accuracy);
+        allAccuracies.push(accuracy);
       }
 
+      // Pass 1: global average (fallback 0.5 when no scores)
+      const globalAvg =
+        allAccuracies.length === 0
+          ? 0.5
+          : allAccuracies.reduce((a, b) => a + b, 0) / allAccuracies.length;
+
+      // Pass 2: per-player Bayesian precision
       type Row = Omit<LeaderboardRow, "rank">;
       const rows: Row[] = [];
       for (const [, v] of byUser) {
         if (v.accuracies.length === 0) continue;
-        const avg = v.accuracies.reduce((a, b) => a + b, 0) / v.accuracies.length;
+        const n = v.accuracies.length;
+        const avg = v.accuracies.reduce((a, b) => a + b, 0) / n;
+        const bayesian = (n * avg + 10 * globalAvg) / (n + 10);
         rows.push({
           username: v.username,
           total_score: 0,
-          game_count: v.accuracies.length,
+          game_count: n,
           best_score: 0,
           avg_accuracy: avg,
+          bayesian_accuracy: bayesian,
           created_at: v.createdAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
         });
       }
-      rows.sort((a, b) => b.avg_accuracy - a.avg_accuracy || b.game_count - a.game_count);
+      rows.sort((a, b) => b.bayesian_accuracy - a.bayesian_accuracy || b.game_count - a.game_count);
       return rows.map((r, i) => ({ rank: i + 1, ...r }));
     }
 
@@ -293,6 +308,7 @@ export async function getLeaderboard(
         game_count: v.scores.length,
         best_score: Math.max(...v.scores),
         avg_accuracy: 0,
+        bayesian_accuracy: 0,
         created_at: v.createdAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
       });
     }
@@ -312,18 +328,38 @@ export async function getLeaderboard(
 
   if (sort === "global") {
     const raw = (await sql.query(`
+      WITH global AS (
+        SELECT COALESCE(
+          AVG(s.score::float / NULLIF(COALESCE(dp.best_possible, s.best_possible), 0)),
+          0.5
+        ) AS global_avg
+        FROM scores s
+        LEFT JOIN daily_puzzles dp ON dp.date = s.date
+      ),
+      player_stats AS (
+        SELECT
+          u.id,
+          u.username,
+          u.created_at,
+          COUNT(*)::int AS game_count,
+          AVG(s.score::float / NULLIF(COALESCE(dp.best_possible, s.best_possible), 0)) AS avg_accuracy
+        FROM scores s
+        JOIN users u ON u.id = s.user_id
+        LEFT JOIN daily_puzzles dp ON dp.date = s.date
+        GROUP BY u.id, u.username, u.created_at
+      )
       SELECT
-        u.username,
-        0::int         AS total_score,
-        COUNT(*)::int  AS game_count,
-        0              AS best_score,
-        AVG(s.score::float / NULLIF(COALESCE(dp.best_possible, s.best_possible), 0)) AS avg_accuracy,
-        u.created_at
-      FROM scores s
-      JOIN users u ON u.id = s.user_id
-      LEFT JOIN daily_puzzles dp ON dp.date = s.date
-      GROUP BY u.id, u.username, u.created_at
-      ORDER BY avg_accuracy DESC, game_count DESC
+        p.username,
+        0::int                                                          AS total_score,
+        p.game_count,
+        0                                                               AS best_score,
+        COALESCE(p.avg_accuracy, 0)                                     AS avg_accuracy,
+        (p.game_count * COALESCE(p.avg_accuracy, 0) + 10 * g.global_avg)
+          / (p.game_count + 10)                                         AS bayesian_accuracy,
+        p.created_at
+      FROM player_stats p
+      CROSS JOIN global g
+      ORDER BY bayesian_accuracy DESC, game_count DESC
     `)) as RawRow[];
 
     return raw.map((r, i) => ({
@@ -333,6 +369,7 @@ export async function getLeaderboard(
       game_count: r.game_count,
       best_score: 0,
       avg_accuracy: typeof r.avg_accuracy === "string" ? parseFloat(r.avg_accuracy) : (r.avg_accuracy ?? 0),
+      bayesian_accuracy: typeof r.bayesian_accuracy === "string" ? parseFloat(r.bayesian_accuracy) : (r.bayesian_accuracy ?? 0),
       created_at: formatCreatedAt(r.created_at),
     }));
   }
@@ -354,6 +391,7 @@ export async function getLeaderboard(
     game_count: r.game_count,
     best_score: r.best_score,
     avg_accuracy: 0,
+    bayesian_accuracy: 0,
     created_at: formatCreatedAt(r.created_at),
   }));
 }

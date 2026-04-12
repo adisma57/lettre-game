@@ -86,10 +86,11 @@ export default function Leaderboard() {
         <div className="flex flex-col gap-2">
           {/* Column headers — hidden on mobile, shown on sm+ */}
           {sort === "global" ? (
-            <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_6rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
+            <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_6rem_5rem_4rem] px-3 py-2 text-xs font-mono uppercase tracking-widest text-muted/60">
               <span>#</span>
               <span>Joueur</span>
               <span className="text-right">Précision</span>
+              <span className="text-right">Brut</span>
               <span className="text-right">Parties</span>
             </div>
           ) : (
@@ -106,7 +107,8 @@ export default function Leaderboard() {
             const isCurrentUser =
               currentUsername != null &&
               row.username.toLowerCase() === currentUsername.toLowerCase();
-            const accuracyLabel = `${(row.avg_accuracy * 100).toFixed(1)} %`;
+            const bayesianLabel = `${(row.bayesian_accuracy * 100).toFixed(1)} %`;
+            const rawLabel      = `${(row.avg_accuracy * 100).toFixed(1)} %`;
             return (
               <div
                 key={row.username}
@@ -137,10 +139,16 @@ export default function Leaderboard() {
                   {/* Stats */}
                   <div className="flex items-center gap-3 shrink-0 text-xs font-mono">
                     {sort === "global" ? (
-                      <div className="flex flex-col items-center">
-                        <span className="font-bold text-primary text-sm">{accuracyLabel}</span>
-                        <span className="text-muted/60 uppercase tracking-wide text-[10px]">précision</span>
-                      </div>
+                      <>
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-primary text-sm">{bayesianLabel}</span>
+                          <span className="text-muted/60 uppercase tracking-wide text-[10px]">préc.</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-muted text-sm">{rawLabel}</span>
+                          <span className="text-muted/60 uppercase tracking-wide text-[10px]">brut</span>
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="flex flex-col items-center">
@@ -162,7 +170,7 @@ export default function Leaderboard() {
 
                 {/* Desktop layout */}
                 {sort === "global" ? (
-                  <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_6rem_4rem] items-center">
+                  <div className="hidden sm:grid sm:grid-cols-[3rem_1fr_6rem_5rem_4rem] items-center">
                     <div className="flex items-center">
                       <span
                         className={[
@@ -174,7 +182,8 @@ export default function Leaderboard() {
                       </span>
                     </div>
                     <span className="font-semibold text-fg truncate pr-2">{row.username}</span>
-                    <span className="text-right font-mono font-bold text-primary">{accuracyLabel}</span>
+                    <span className="text-right font-mono font-bold text-primary">{bayesianLabel}</span>
+                    <span className="text-right font-mono text-muted">{rawLabel}</span>
                     <span className="text-right font-mono text-muted">{row.game_count}</span>
                   </div>
                 ) : (
