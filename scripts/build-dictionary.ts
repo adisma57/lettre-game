@@ -56,7 +56,11 @@ async function main() {
     console.log(`  → ${lines.length} lines`);
 
     for (const line of lines) {
-      const form = line.split("\t")[0].trim().toLowerCase();
+      const parts = line.split("\t");
+      const form = parts[0].trim().toLowerCase();
+      const pos = parts[1]?.trim();
+      // Skip proper nouns (np = nom propre in LEFFF)
+      if (pos === "np") continue;
       if (form && WORD_RE.test(form) && form.length >= 2) {
         wordSet.add(form);
       }

@@ -2,10 +2,11 @@ import type { ScoreResult } from "../../engine/types";
 
 type LetterRole = "unused" | "insert" | "unordered" | "ordered";
 
+// Role → Tailwind text color (used by Rules page via ROLE_CLASS_BY_STRING)
 const ROLE_CLASS: Record<LetterRole, string> = {
-  ordered:   "text-success",
-  unordered: "text-info",
-  insert:    "text-error",
+  ordered:   "text-primary",
+  unordered: "text-primary/60",
+  insert:    "text-fg-sub",
   unused:    "text-muted",
 };
 
@@ -31,12 +32,18 @@ interface ColoredWordProps {
 export function ColoredWord({ score }: ColoredWordProps) {
   const roles = computeLetterRoles(score.word, score.skeletonIndices, score.orderBonus);
   return (
-    <span className="font-mono text-2xl font-bold">
-      {score.word.split("").map((ch, i) => (
-        <span key={i} className={ROLE_CLASS[roles[i]]}>
-          {ch}
-        </span>
-      ))}
+    <span className="font-mono text-[1.625rem] font-bold leading-none">
+      {score.word.split("").map((ch, i) => {
+        const isSkeleton = roles[i] === "ordered" || roles[i] === "unordered";
+        return (
+          <span key={i} className={`relative inline-block ${ROLE_CLASS[roles[i]]}`}>
+            {ch}
+            {isSkeleton && (
+              <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-current opacity-80" />
+            )}
+          </span>
+        );
+      })}
     </span>
   );
 }

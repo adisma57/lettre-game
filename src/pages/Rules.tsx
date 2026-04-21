@@ -95,17 +95,26 @@ function Examples({ examples }: { examples: Example[] }) {
   );
 }
 
+const SKELETON_ROLES = new Set(["ordered", "unordered"]);
+
 function ColorLegend({ colors }: { colors: ColorEntry[] }) {
   return (
-    <ul className="mt-4 flex flex-col gap-2">
-      {colors.map((entry) => (
-        <li key={entry.role} className="flex items-start gap-3 text-sm">
-          <span className={`w-10 shrink-0 font-bold ${ROLE_CLASS[entry.role] ?? "text-fg"}`}>
-            {entry.label}
-          </span>
-          <span className="text-muted">{entry.description}</span>
-        </li>
-      ))}
+    <ul className="mt-4 flex flex-col gap-3">
+      {colors.map((entry) => {
+        const isSkeleton = SKELETON_ROLES.has(entry.role);
+        return (
+          <li key={entry.role} className="flex items-center gap-3 text-sm">
+            {/* Sample letter showing the actual visual */}
+            <span className={`relative inline-block w-6 shrink-0 text-center font-mono text-base font-bold ${ROLE_CLASS[entry.role] ?? "text-fg"}`}>
+              A
+              {isSkeleton && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-current opacity-80" />
+              )}
+            </span>
+            <span className="text-muted">{entry.description}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

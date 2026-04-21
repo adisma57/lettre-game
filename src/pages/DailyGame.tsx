@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useDailyGame } from "../hooks/useDailyGame";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import type { SolverResult } from "../engine/solver";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -20,12 +22,58 @@ function tomorrow(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 }
 
+// ─── Top words list ───────────────────────────────────────────────────────────
+
+function TopWordsList({ words }: { words: SolverResult[] }) {
+  const [showMore, setShowMore] = useState(false);
+
+  const top3  = words.slice(0, 3);
+  const next7 = words.slice(3, 10);
+
+  function WordRow({ r, rank }: { r: SolverResult; rank: number }) {
+    return (
+      <li className="flex items-baseline justify-between gap-4">
+        <span className="text-muted">{rank}.</span>
+        <span className="flex-1 font-mono font-bold text-fg">{r.word}</span>
+        <span className={`font-semibold ${rank === 1 ? "text-primary" : "text-muted"}`}>
+          {r.score.total} pts
+        </span>
+      </li>
+    );
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-line bg-elevated p-4">
+      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— Meilleurs mots possibles —</p>
+      <ol className="space-y-2">
+        {top3.map((r, i) => <WordRow key={r.word} r={r} rank={i + 1} />)}
+      </ol>
+
+      {next7.length > 0 && (
+        <>
+          {showMore && (
+            <ol className="mt-2 space-y-2">
+              {next7.map((r, i) => <WordRow key={r.word} r={r} rank={i + 4} />)}
+            </ol>
+          )}
+          <button
+            onClick={() => setShowMore(v => !v)}
+            className="mt-3 text-xs text-muted hover:text-fg underline underline-offset-2 transition-colors"
+          >
+            {showMore ? "▲ Masquer" : `▼ Voir les ${next7.length} suivant${next7.length > 1 ? "s" : ""}`}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DailyGame() {
   const {
     draw, phase, attempts,
-    bestPossibleScore, bestWord,
+    bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, currentAttemptResult,
   } = useDailyGame();
@@ -74,15 +122,9 @@ export default function DailyGame() {
 
       {/* Retry button */}
       {phase.kind === "attempt_shown" && attempts.length < 3 && (
-        <div className="flex flex-col items-start gap-3">
-          <Button variant="secondary" onClick={retryRound}>
-            Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
-          </Button>
-          <p className="text-xs text-muted leading-relaxed">
-            Votre score n'est envoyé au classement qu'en fin de partie — quand vous
-            atteignez le meilleur score possible ou que vous avez utilisé vos 3 essais.
-          </p>
-        </div>
+        <Button variant="secondary" onClick={retryRound}>
+          Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
+        </Button>
       )}
 
       {/* Completed summary */}
@@ -103,6 +145,8 @@ export default function DailyGame() {
           <p className="text-sm text-muted">
             Revenez demain — {formatUTC(tomorrow())}
           </p>
+
+          {topWords.length > 0 && <TopWordsList words={topWords} />}
         </Card>
       )}
     </div>

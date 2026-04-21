@@ -61,18 +61,18 @@
       "colors": [
         {
           "role": "ordered",
-          "label": "Vert",
-          "description": "Lettre du tirage dans la zone, dans l'ordre du tirage. Contribue au bonus d'ordre."
+          "label": "Orange souligné",
+          "description": "Lettre du tirage dans l'ordre exact — contribue aux points et au bonus d'ordre."
         },
         {
           "role": "unordered",
-          "label": "Bleu",
-          "description": "Lettre du tirage dans la zone, mais hors ordre."
+          "label": "Orange atténué souligné",
+          "description": "Lettre du tirage présente dans le mot, mais hors ordre — rapporte des points, pas de bonus d'ordre."
         },
         {
           "role": "insert",
-          "label": "Rouge",
-          "description": "Insertion : lettre étrangère au tirage située dans la zone. Retire 1 point."
+          "label": "Beige",
+          "description": "Insertion : lettre étrangère au tirage dans la zone. Retire 1 point."
         },
         {
           "role": "unused",

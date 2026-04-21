@@ -4,7 +4,7 @@ import type { RoundResult } from "../engine/RoundService";
 import { evaluateRound } from "../engine/RoundService";
 import { normalizeWord } from "../engine/score";
 import { mainValidator, mainDictionary } from "../engine/mainDictionary";
-import { findBestWordForDraw } from "../engine/findBestWord";
+import { solveTopN, type SolverResult } from "../engine/solver";
 import { getDailyDraw } from "../engine/draw";
 import {
   loadDailyState,
@@ -26,6 +26,7 @@ export type GameState = {
   attempts: AttemptRecord[];
   bestPossibleScore: number;        // -1 before first attempt
   bestWord: string | null;          // null before first attempt
+  topWords: SolverResult[];         // top 10 best words, empty before first attempt
   inputWord: string;
   setInputWord: (w: string) => void;
   isInputValid: boolean | null;     // null = empty, true = in dict, false = not in dict
@@ -40,6 +41,7 @@ export function useDailyGame(): GameState {
   const [attempts, setAttempts]   = useState<AttemptRecord[]>([]);
   const [bestPossibleScore, setBestPossibleScore] = useState<number>(-1);
   const [bestWord, setBestWord]   = useState<string | null>(null);
+  const [topWords, setTopWords]   = useState<SolverResult[]>([]);
   const [inputWord, setInputWord] = useState<string>("");
   const [isInputValid, setIsInputValid] = useState<boolean | null>(null);
   const [currentAttemptResult, setCurrentAttemptResult] = useState<RoundResult | null>(null);
@@ -57,6 +59,9 @@ export function useDailyGame(): GameState {
         saved.attempts.length > 0 ? { kind: "attempt_shown" } :
                                     { kind: "playing"        }
       );
+      if (saved.bestPossibleScore >= 0) {
+        setTopWords(solveTopN(saved.draw, mainDictionary, 10));
+      }
     }
   }, []);
 
@@ -85,10 +90,13 @@ export function useDailyGame(): GameState {
     // Compute best possible score lazily on first valid submit (~50 ms)
     let newBestScore = bestPossibleScore;
     let newBestWord  = bestWord;
+    let newTopWords  = topWords;
     if (bestPossibleScore === -1) {
-      const best = findBestWordForDraw(draw, mainDictionary);
-      newBestScore = best?.score ?? 0;
-      newBestWord  = best?.word  ?? null;
+      const top = solveTopN(draw, mainDictionary, 10);
+      newTopWords  = top;
+      newBestScore = top[0]?.score.total ?? 0;
+      newBestWord  = top[0]?.word ?? null;
+      setTopWords(newTopWords);
       setBestPossibleScore(newBestScore);
       setBestWord(newBestWord);
     }
@@ -120,20 +128,17 @@ export function useDailyGame(): GameState {
       completed:         nextPhase.kind === "completed",
     });
 
-    if (nextPhase.kind === "completed") {
-      const username = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (username) {
-        const bestAttemptScore = Math.max(...newAttempts.map(a => a.total));
-        submitScore({
-          username,
-          date:          todayKey,
-          score:         bestAttemptScore,
-          best_possible: newBestScore,
-          attempts:      newAttempts.length,
-        });
-      }
+    const username = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (username) {
+      submitScore({
+        username,
+        date:          todayKey,
+        score:         result.total,
+        best_possible: newBestScore,
+        attempts:      newAttempts.length,
+      });
     }
-  }, [draw, inputWord, attempts, bestPossibleScore, bestWord]);
+  }, [draw, inputWord, attempts, bestPossibleScore, bestWord, topWords]);
 
   const retryRound = useCallback(() => {
     setInputWord("");
@@ -143,7 +148,7 @@ export function useDailyGame(): GameState {
   }, []);
 
   return {
-    draw, phase, attempts, bestPossibleScore, bestWord,
+    draw, phase, attempts, bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, currentAttemptResult,
   };

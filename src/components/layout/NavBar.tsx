@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
+import { LogoMark } from "../ui/LogoMark";
 
 const NAV_LINKS = [
   { to: "/daily",       label: "Défi du jour"  },
@@ -18,17 +19,14 @@ export default function NavBar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-canvas/90 backdrop-blur-md">
-      <nav className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
+      <nav className="mx-auto flex h-[60px] max-w-4xl items-center justify-between px-4">
         {/* Logo */}
         <Link
           to="/"
           className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
         >
-          {/* Lettermark tile */}
-          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-primary/40 bg-primary/10 font-mono text-sm font-bold text-primary">
-            Q
-          </div>
-          <span className="font-display text-lg font-bold tracking-tight text-fg">
+          <LogoMark size={32} />
+          <span className="font-display text-lg font-bold tracking-[0.08em] text-fg">
             QUADRA
           </span>
         </Link>
