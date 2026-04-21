@@ -158,7 +158,7 @@ export async function findUserIdByUsername(
   return rows[0]?.id ?? null;
 }
 
-export async function insertScoreIfAbsent(
+export async function upsertScore(
   userId: number,
   date: string,
   score: number,
@@ -166,8 +166,11 @@ export async function insertScoreIfAbsent(
   attempts: number,
 ): Promise<void> {
   if (isMemoryBackend()) {
-    const exists = mem.scores.some((s) => s.userId === userId && s.date === date);
-    if (!exists) {
+    const existing = mem.scores.find((s) => s.userId === userId && s.date === date);
+    if (existing) {
+      existing.score = Math.max(existing.score, score);
+      existing.attempts = attempts;
+    } else {
       mem.scores.push({ userId, date, score, best_possible, attempts });
     }
     return;
@@ -177,7 +180,9 @@ export async function insertScoreIfAbsent(
   await sql`
     INSERT INTO scores (user_id, date, score, best_possible, attempts)
     VALUES (${userId}, ${date}, ${score}, ${best_possible}, ${attempts})
-    ON CONFLICT (user_id, date) DO NOTHING
+    ON CONFLICT (user_id, date) DO UPDATE SET
+      score    = GREATEST(excluded.score, scores.score),
+      attempts = excluded.attempts
   `;
 }
 

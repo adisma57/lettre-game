@@ -5,7 +5,7 @@ import {
   ensureSchema,
   findUserIdByUsername,
   getLeaderboard,
-  insertScoreIfAbsent,
+  upsertScore,
   insertUser,
   upsertDailyPuzzle,
   usernameExists,
@@ -109,7 +109,7 @@ app.post("/scores", withDb, async (c) => {
   }
 
   await upsertDailyPuzzle(date, best_possible);
-  await insertScoreIfAbsent(userId, date, score, best_possible, attempts);
+  await upsertScore(userId, date, score, best_possible, attempts);
 
   return c.json({ ok: true });
 });

@@ -120,18 +120,15 @@ export function useDailyGame(): GameState {
       completed:         nextPhase.kind === "completed",
     });
 
-    if (nextPhase.kind === "completed") {
-      const username = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (username) {
-        const bestAttemptScore = Math.max(...newAttempts.map(a => a.total));
-        submitScore({
-          username,
-          date:          todayKey,
-          score:         bestAttemptScore,
-          best_possible: newBestScore,
-          attempts:      newAttempts.length,
-        });
-      }
+    const username = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (username) {
+      submitScore({
+        username,
+        date:          todayKey,
+        score:         result.total,
+        best_possible: newBestScore,
+        attempts:      newAttempts.length,
+      });
     }
   }, [draw, inputWord, attempts, bestPossibleScore, bestWord]);
 
