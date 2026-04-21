@@ -1,12 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDailyGame } from "../hooks/useDailyGame";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { fetchLeaderboard, type LeaderboardEntry } from "../services/api";
-import { AUTH_STORAGE_KEY } from "../hooks/useAuth";
+import type { SolverResult } from "../engine/solver";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -23,57 +22,45 @@ function tomorrow(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 }
 
-// ─── Mini leaderboard ─────────────────────────────────────────────────────────
+// ─── Top words list ───────────────────────────────────────────────────────────
 
-const RANK_COLORS: Record<number, string> = {
-  1: "text-yellow-400",
-  2: "text-slate-300",
-  3: "text-amber-600",
-};
-
-function MiniLeaderboard({ rows, currentUser }: { rows: LeaderboardEntry[]; currentUser: string | null }) {
+function TopWordsList({ words }: { words: SolverResult[] }) {
   const [showMore, setShowMore] = useState(false);
 
-  const top3   = rows.slice(0, 3);
-  const next7  = rows.slice(3, 10);
+  const top3  = words.slice(0, 3);
+  const next7 = words.slice(3, 10);
 
-  function Row({ r }: { r: LeaderboardEntry }) {
-    const isMe = currentUser !== null && r.username.toLowerCase() === currentUser.toLowerCase();
+  function WordRow({ r, rank }: { r: SolverResult; rank: number }) {
     return (
-      <div
-        className={`flex items-center gap-3 py-2 px-3 rounded ${isMe ? "bg-primary/10 border border-primary/30" : ""}`}
-      >
-        <span className={`w-5 text-right font-bold text-sm ${RANK_COLORS[r.rank] ?? "text-muted"}`}>
-          {r.rank}
+      <li className="flex items-baseline justify-between gap-4">
+        <span className="text-muted">{rank}.</span>
+        <span className="flex-1 font-mono font-bold text-fg">{r.word}</span>
+        <span className={`font-semibold ${rank === 1 ? "text-primary" : "text-muted"}`}>
+          {r.score.total} pts
         </span>
-        <span className={`flex-1 text-sm truncate ${isMe ? "text-primary font-semibold" : "text-fg"}`}>
-          {r.username}
-        </span>
-        <span className="text-sm font-mono text-fg">{r.total_score} pts</span>
-        <span className="text-xs text-muted w-12 text-right">{r.game_count} partie{r.game_count > 1 ? "s" : ""}</span>
-      </div>
+      </li>
     );
   }
 
   return (
-    <div className="mt-5">
-      <p className="text-xs uppercase tracking-wider text-muted mb-2">— Classement de la semaine —</p>
-      <div className="flex flex-col gap-1">
-        {top3.map(r => <Row key={r.username} r={r} />)}
-      </div>
+    <div className="mt-5 rounded-xl border border-line bg-elevated p-4">
+      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— Meilleurs mots possibles —</p>
+      <ol className="space-y-2">
+        {top3.map((r, i) => <WordRow key={r.word} r={r} rank={i + 1} />)}
+      </ol>
 
       {next7.length > 0 && (
         <>
           {showMore && (
-            <div className="flex flex-col gap-1 mt-1">
-              {next7.map(r => <Row key={r.username} r={r} />)}
-            </div>
+            <ol className="mt-2 space-y-2">
+              {next7.map((r, i) => <WordRow key={r.word} r={r} rank={i + 4} />)}
+            </ol>
           )}
           <button
             onClick={() => setShowMore(v => !v)}
             className="mt-3 text-xs text-muted hover:text-fg underline underline-offset-2 transition-colors"
           >
-            {showMore ? "Réduire" : `Voir les ${next7.length} suivant${next7.length > 1 ? "s" : ""}`}
+            {showMore ? "▲ Masquer" : `▼ Voir les ${next7.length} suivant${next7.length > 1 ? "s" : ""}`}
           </button>
         </>
       )}
@@ -86,18 +73,10 @@ function MiniLeaderboard({ rows, currentUser }: { rows: LeaderboardEntry[]; curr
 export default function DailyGame() {
   const {
     draw, phase, attempts,
-    bestPossibleScore, bestWord,
+    bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, currentAttemptResult,
   } = useDailyGame();
-
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const currentUser = localStorage.getItem(AUTH_STORAGE_KEY);
-
-  useEffect(() => {
-    if (phase.kind !== "completed") return;
-    fetchLeaderboard("weekly").then(setLeaderboard).catch(() => {});
-  }, [phase.kind]);
 
   return (
     <div className="mx-auto max-w-lg">
@@ -167,9 +146,7 @@ export default function DailyGame() {
             Revenez demain — {formatUTC(tomorrow())}
           </p>
 
-          {leaderboard.length > 0 && (
-            <MiniLeaderboard rows={leaderboard} currentUser={currentUser} />
-          )}
+          {topWords.length > 0 && <TopWordsList words={topWords} />}
         </Card>
       )}
     </div>
