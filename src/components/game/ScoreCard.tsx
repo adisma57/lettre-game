@@ -42,7 +42,7 @@ export function ScoreCard({
       <div className="flex items-center gap-4">
         <div>
           <p className="text-xs text-muted">Votre score</p>
-          <p className="font-display text-2xl font-bold text-primary">{total}<span className="ml-1 text-sm font-normal text-muted">pts</span></p>
+          <p className="font-display text-3xl font-extrabold text-primary leading-none">{total}<span className="ml-1.5 text-sm font-normal text-muted">pts</span></p>
         </div>
 
         {bestPossibleScore !== undefined && bestPossibleScore >= 0 && (
@@ -50,7 +50,7 @@ export function ScoreCard({
             <div className="h-8 w-px bg-line" />
             <div>
               <p className="text-xs text-muted">Meilleur possible</p>
-              <p className="font-display text-2xl font-bold text-fg/60">{bestPossibleScore}<span className="ml-1 text-sm font-normal text-muted">pts</span></p>
+              <p className="font-display text-3xl font-extrabold text-fg/50 leading-none">{bestPossibleScore}<span className="ml-1.5 text-sm font-normal text-muted">pts</span></p>
             </div>
           </>
         )}
