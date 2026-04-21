@@ -62,7 +62,7 @@ export default function Home() {
         </div>
 
         {/* Title */}
-        <h1 className="animate-fade-up font-display text-[2.5rem] sm:text-6xl font-extrabold tracking-tight text-fg" style={{ animationDelay: "200ms" }}>
+        <h1 className="animate-fade-up font-display text-[3.2rem] font-extrabold tracking-[0.04em] text-fg" style={{ animationDelay: "200ms" }}>
           QUADRA
         </h1>
         <p className="animate-fade-up mt-4 text-base text-muted" style={{ animationDelay: "300ms" }}>

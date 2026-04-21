@@ -2,25 +2,25 @@
 
 @theme {
   /* Backgrounds */
-  --color-canvas:        #0d0d0d;
-  --color-surface:       #161616;
-  --color-elevated:      #1f1f1f;
+  --color-canvas:        #0c0b09;
+  --color-surface:       #141210;
+  --color-elevated:      #1d1a16;
 
   /* Borders */
-  --color-line:          #2a2a2a;
+  --color-line:          #2c2620;
 
   /* Text */
-  --color-fg:            #f0f0f0;
-  --color-muted:         #666666;
+  --color-fg:            #f2ede6;
+  --color-fg-sub:        #c0b8ac;
+  --color-muted:         #6a6050;
 
   /* Brand */
   --color-primary:       #f97316;
-  --color-primary-dim:   #ea6c0a;
+  --color-primary-dim:   #c45810;
 
   /* Semantic */
   --color-success:       #22c55e;
   --color-error:         #ef4444;
-  --color-info:          #3b82f6;
 
   /* Typography */
   --font-display: "Syne", system-ui, sans-serif;
@@ -38,8 +38,8 @@
     font-family: "Syne", system-ui, -apple-system, "Segoe UI", sans-serif;
     /* Subtle orange warmth radiating from top-left */
     background-image:
-      radial-gradient(ellipse 70% 40% at 10% -10%, rgba(249, 115, 22, 0.07) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 30% at 90% 110%, rgba(249, 115, 22, 0.04) 0%, transparent 50%);
+      radial-gradient(ellipse 80% 50% at 8% -12%, rgba(249, 115, 22, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 92% 110%, rgba(249, 115, 22, 0.05) 0%, transparent 50%);
   }
 
   /* Smooth focus outline for keyboard navigation */
@@ -97,8 +97,8 @@
   /* Tile glow: a crisp orange ring + diffuse ambient */
   .tile-glow {
     box-shadow:
-      0 0 0 1px rgba(249, 115, 22, 0.25),
-      0 0 18px rgba(249, 115, 22, 0.10);
+      0 0 0 1px rgba(249, 115, 22, 0.18),
+      0 0 18px rgba(249, 115, 22, 0.14);
   }
 
   /* Button shine overlay — applied to primary buttons */
