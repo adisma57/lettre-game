@@ -9,7 +9,7 @@ function isApiError(body: unknown): body is ApiError {
 // ─── POST /api/users ──────────────────────────────────────────────────────────
 
 export type CreateUserResult =
-  | { ok: true;  username: string }
+  | { ok: true;  username: string; recoveryCode: string }
   | { ok: false; error: string; status: number };
 
 export async function createUser(username: string): Promise<CreateUserResult> {
@@ -20,15 +20,11 @@ export async function createUser(username: string): Promise<CreateUserResult> {
   });
   const body: unknown = await res.json().catch(() => null);
   if (res.ok) {
-    const username =
-      body !== null &&
-      typeof body === "object" &&
-      "username" in body &&
-      typeof (body as Record<string, unknown>).username === "string"
-        ? (body as { username: string }).username
-        : null;
-    if (!username) return { ok: false, error: "Réponse serveur invalide.", status: 200 };
-    return { ok: true, username };
+    const b = body as Record<string, unknown> | null;
+    const u = typeof b?.username === "string" ? b.username : null;
+    const rc = typeof b?.recovery_code === "string" ? b.recovery_code : null;
+    if (!u || !rc) return { ok: false, error: "Réponse serveur invalide.", status: 200 };
+    return { ok: true, username: u, recoveryCode: rc };
   }
   return {
     ok: false,
@@ -92,4 +88,28 @@ export async function usernameExists(username: string): Promise<boolean> {
   );
   const body = (await res.json()) as { exists: boolean };
   return body.exists;
+}
+
+// ─── POST /api/recovery-code ──────────────────────────────────────────────────
+
+export type RecoverResult =
+  | { ok: true;  username: string }
+  | { ok: false; error: string };
+
+export async function recoverAccount(code: string): Promise<RecoverResult> {
+  const res = await fetch(`${BASE}/api/recovery-code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  const body: unknown = await res.json().catch(() => null);
+  if (res.ok) {
+    const username =
+      typeof (body as Record<string, unknown> | null)?.username === "string"
+        ? (body as { username: string }).username
+        : null;
+    if (!username) return { ok: false, error: "Réponse serveur invalide." };
+    return { ok: true, username };
+  }
+  return { ok: false, error: isApiError(body) ? body.error : `Erreur serveur (${res.status}).` };
 }

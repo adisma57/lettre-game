@@ -50,7 +50,13 @@ function isUniqueViolation(err: unknown): boolean {
 
 // ─── In-memory dev store (no DATABASE_URL) ───────────────────────────────────
 
-type MemUser = { id: number; username: string; createdAt: Date };
+function generateRecoveryCode(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+type MemUser = { id: number; username: string; recoveryCode: string; createdAt: Date };
 type MemScore = {
   userId: number;
   date: string;
@@ -63,6 +69,7 @@ const mem = {
   nextUserId: 1,
   usersById: new Map<number, MemUser>(),
   lowerToId: new Map<string, number>(),
+  recoveryCodeToId: new Map<string, number>(),
   scores: [] as MemScore[],
   dailyPuzzles: new Map<string, number>(),
 };
@@ -90,10 +97,15 @@ export async function ensureSchema(): Promise<void> {
 
   await sql`
     CREATE TABLE IF NOT EXISTS users (
-      id         SERIAL PRIMARY KEY,
-      username   TEXT        NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
+      id            SERIAL PRIMARY KEY,
+      username      TEXT        NOT NULL,
+      recovery_code TEXT        UNIQUE,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
     )
+  `;
+
+  await sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_code TEXT UNIQUE
   `;
 
   await sql`
@@ -123,20 +135,23 @@ export async function ensureSchema(): Promise<void> {
 
 export async function insertUser(
   username: string,
-): Promise<{ ok: true } | { ok: false; duplicate: true }> {
+): Promise<{ ok: true; recoveryCode: string } | { ok: false; duplicate: true }> {
+  const recoveryCode = generateRecoveryCode();
+
   if (isMemoryBackend()) {
     const key = username.toLowerCase();
     if (mem.lowerToId.has(key)) return { ok: false, duplicate: true };
     const id = mem.nextUserId++;
-    mem.usersById.set(id, { id, username, createdAt: new Date() });
+    mem.usersById.set(id, { id, username, recoveryCode, createdAt: new Date() });
     mem.lowerToId.set(key, id);
-    return { ok: true };
+    mem.recoveryCodeToId.set(recoveryCode, id);
+    return { ok: true, recoveryCode };
   }
 
   const sql = getNeon();
   try {
-    await sql`INSERT INTO users (username) VALUES (${username})`;
-    return { ok: true };
+    await sql`INSERT INTO users (username, recovery_code) VALUES (${username}, ${recoveryCode})`;
+    return { ok: true, recoveryCode };
   } catch (err: unknown) {
     if (isUniqueViolation(err)) return { ok: false, duplicate: true };
     throw err;
@@ -411,4 +426,20 @@ export async function usernameExists(name: string): Promise<boolean> {
     SELECT 1 AS ok FROM users WHERE LOWER(username) = LOWER(${name}) LIMIT 1
   `) as { ok: number }[];
   return found.length > 0;
+}
+
+export async function findUsernameByRecoveryCode(
+  code: string,
+): Promise<string | null> {
+  if (isMemoryBackend()) {
+    const id = mem.recoveryCodeToId.get(code.toUpperCase());
+    if (id == null) return null;
+    return mem.usersById.get(id)?.username ?? null;
+  }
+
+  const sql = getNeon();
+  const rows = (await sql`
+    SELECT username FROM users WHERE recovery_code = ${code.toUpperCase()} LIMIT 1
+  `) as { username: string }[];
+  return rows[0]?.username ?? null;
 }

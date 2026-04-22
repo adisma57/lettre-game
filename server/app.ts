@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import {
   ensureSchema,
   findUserIdByUsername,
+  findUsernameByRecoveryCode,
   getLeaderboard,
   upsertScore,
   insertUser,
@@ -71,7 +72,7 @@ app.post("/users", withDb, async (c) => {
   if (!result.ok) {
     return c.json({ error: "Ce pseudo est déjà pris." }, 409);
   }
-  return c.json({ username }, 201);
+  return c.json({ username, recovery_code: result.recoveryCode }, 201);
 });
 
 // ─── POST /api/scores ────────────────────────────────────────────────────────
@@ -135,6 +136,19 @@ app.get("/users/:name/exists", withDb, async (c) => {
   const name = c.req.param("name");
   const exists = await usernameExists(name);
   return c.json({ exists });
+});
+
+// ─── POST /api/recovery-code ──────────────────────────────────────────────────
+
+app.post("/recovery-code", withDb, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { code?: string };
+  const code = (body.code ?? "").trim();
+  if (!code) return c.json({ error: "Code de récupération manquant." }, 400);
+
+  const username = await findUsernameByRecoveryCode(code);
+  if (!username) return c.json({ error: "Code invalide ou inexistant." }, 404);
+
+  return c.json({ username });
 });
 
 export { app };
