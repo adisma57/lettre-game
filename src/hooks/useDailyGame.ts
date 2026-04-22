@@ -12,7 +12,7 @@ import {
   getTodayKey,
 } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
-import { submitScore } from "../services/api";
+import { submitScoreWithRetry } from "../services/scoreSync";
 import { AUTH_STORAGE_KEY } from "./useAuth";
 
 type Phase =
@@ -130,7 +130,7 @@ export function useDailyGame(): GameState {
 
     const username = localStorage.getItem(AUTH_STORAGE_KEY);
     if (username) {
-      submitScore({
+      void submitScoreWithRetry({
         username,
         date:          todayKey,
         score:         result.total,

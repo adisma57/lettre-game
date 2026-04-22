@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { to: "/solver",      label: "Solveur"       },
   { to: "/leaderboard", label: "Classement"    },
   { to: "/rules",       label: "Règles"        },
+  { to: "/profile",     label: "Mon compte"    },
 ] as const;
 
 export default function NavBar() {

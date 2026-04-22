@@ -50,7 +50,12 @@ function isUniqueViolation(err: unknown): boolean {
 
 // ─── In-memory dev store (no DATABASE_URL) ───────────────────────────────────
 
-type MemUser = { id: number; username: string; createdAt: Date };
+type MemUser = {
+  id: number;
+  username: string;
+  createdAt: Date;
+  recoveryCodeHash: string | null;
+};
 type MemScore = {
   userId: number;
   date: string;
@@ -101,6 +106,14 @@ export async function ensureSchema(): Promise<void> {
     ON users (LOWER(username))
   `;
 
+  // Recovery code: SHA-256 hex digest of the plain code we showed once at
+  // signup. NULL for legacy accounts — those users can set one via
+  // POST /api/users/:name/recovery-code.
+  await sql`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS recovery_code_hash TEXT
+  `;
+
   await sql`
     CREATE TABLE IF NOT EXISTS scores (
       id             SERIAL PRIMARY KEY,
@@ -121,26 +134,115 @@ export async function ensureSchema(): Promise<void> {
   `;
 }
 
+/** Cryptographically-random 16-hex-char code, formatted as XXXX-XXXX-XXXX-XXXX. */
+export function generateRecoveryCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+  return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}`;
+}
+
+export async function hashRecoveryCode(code: string): Promise<string> {
+  const bytes = new TextEncoder().encode(code.trim().toUpperCase());
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export async function insertUser(
   username: string,
-): Promise<{ ok: true } | { ok: false; duplicate: true }> {
+): Promise<
+  | { ok: true; recoveryCode: string }
+  | { ok: false; duplicate: true }
+> {
+  const recoveryCode = generateRecoveryCode();
+  const codeHash = await hashRecoveryCode(recoveryCode);
+
   if (isMemoryBackend()) {
     const key = username.toLowerCase();
     if (mem.lowerToId.has(key)) return { ok: false, duplicate: true };
     const id = mem.nextUserId++;
-    mem.usersById.set(id, { id, username, createdAt: new Date() });
+    mem.usersById.set(id, {
+      id,
+      username,
+      createdAt: new Date(),
+      recoveryCodeHash: codeHash,
+    });
     mem.lowerToId.set(key, id);
-    return { ok: true };
+    return { ok: true, recoveryCode };
   }
 
   const sql = getNeon();
   try {
-    await sql`INSERT INTO users (username) VALUES (${username})`;
-    return { ok: true };
+    await sql`
+      INSERT INTO users (username, recovery_code_hash)
+      VALUES (${username}, ${codeHash})
+    `;
+    return { ok: true, recoveryCode };
   } catch (err: unknown) {
     if (isUniqueViolation(err)) return { ok: false, duplicate: true };
     throw err;
   }
+}
+
+/**
+ * Verify a recovery code and return the canonical username if valid.
+ * Constant-time-ish: we always hash the candidate before the DB lookup.
+ */
+export async function verifyRecoveryCode(
+  username: string,
+  code: string,
+): Promise<string | null> {
+  const codeHash = await hashRecoveryCode(code);
+
+  if (isMemoryBackend()) {
+    const id = mem.lowerToId.get(username.toLowerCase());
+    if (id == null) return null;
+    const user = mem.usersById.get(id);
+    if (!user || !user.recoveryCodeHash) return null;
+    return user.recoveryCodeHash === codeHash ? user.username : null;
+  }
+
+  const sql = getNeon();
+  const rows = (await sql`
+    SELECT username FROM users
+    WHERE LOWER(username) = LOWER(${username})
+      AND recovery_code_hash = ${codeHash}
+    LIMIT 1
+  `) as { username: string }[];
+  return rows[0]?.username ?? null;
+}
+
+/**
+ * Set (or reset) the recovery code for an existing user.
+ * Returns the plain code so the caller can show it once.
+ */
+export async function resetRecoveryCode(
+  username: string,
+): Promise<string | null> {
+  const recoveryCode = generateRecoveryCode();
+  const codeHash = await hashRecoveryCode(recoveryCode);
+
+  if (isMemoryBackend()) {
+    const id = mem.lowerToId.get(username.toLowerCase());
+    if (id == null) return null;
+    const user = mem.usersById.get(id);
+    if (!user) return null;
+    user.recoveryCodeHash = codeHash;
+    return recoveryCode;
+  }
+
+  const sql = getNeon();
+  const rows = (await sql`
+    UPDATE users
+    SET recovery_code_hash = ${codeHash}
+    WHERE LOWER(username) = LOWER(${username})
+    RETURNING id
+  `) as { id: number }[];
+  return rows.length > 0 ? recoveryCode : null;
 }
 
 export async function findUserIdByUsername(
