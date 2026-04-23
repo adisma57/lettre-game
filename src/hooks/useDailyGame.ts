@@ -60,7 +60,12 @@ export function useDailyGame(): GameState {
                                     { kind: "playing"        }
       );
       if (saved.bestPossibleScore >= 0) {
-        setTopWords(solveTopN(saved.draw, mainDictionary, 10));
+        const top = solveTopN(saved.draw, mainDictionary, 10);
+        setTopWords(top);
+        if (top.length > 0) {
+          setBestPossibleScore(top[0].score.total);
+          setBestWord(top[0].word);
+        }
       }
     }
   }, []);
