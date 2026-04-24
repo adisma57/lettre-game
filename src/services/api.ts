@@ -45,17 +45,35 @@ export async function submitScore(payload: {
   score: number;
   best_possible: number;
   attempts: number;
-}): Promise<void> {
+}): Promise<boolean> {
   const { username, ...body } = payload;
-  await fetch(`${BASE}/api/scores`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Username": username,
-    },
-    body: JSON.stringify(body),
-  });
-  // Fire-and-forget: score submission failures are non-fatal
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise<void>(r => setTimeout(r, attempt * 1000));
+    }
+    try {
+      const res = await fetch(`${BASE}/api/scores`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Username": username,
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return true;
+      // 4xx = erreur client (mauvaises données / utilisateur inconnu) — inutile de réessayer
+      if (res.status >= 400 && res.status < 500) {
+        console.error(`[submitScore] Erreur ${res.status} — score non sauvegardé`);
+        return false;
+      }
+      // 5xx — on réessaie
+      console.error(`[submitScore] Erreur serveur ${res.status}, tentative ${attempt + 1}/${MAX_ATTEMPTS}`);
+    } catch (err) {
+      console.error(`[submitScore] Erreur réseau, tentative ${attempt + 1}/${MAX_ATTEMPTS}:`, err);
+    }
+  }
+  return false;
 }
 
 // ─── GET /api/leaderboard ─────────────────────────────────────────────────────

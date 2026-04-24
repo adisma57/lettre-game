@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDailyGame } from "../hooks/useDailyGame";
+import { useAuth } from "../hooks/useAuth";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
@@ -71,12 +72,15 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DailyGame() {
+  const { auth } = useAuth();
+  const username = auth.status === "authenticated" ? auth.username : null;
+
   const {
     draw, phase, attempts,
     bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, currentAttemptResult,
-  } = useDailyGame();
+  } = useDailyGame(username);
 
   return (
     <div className="mx-auto max-w-lg">

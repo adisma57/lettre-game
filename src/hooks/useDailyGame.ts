@@ -13,7 +13,6 @@ import {
 } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
 import { submitScore } from "../services/api";
-import { AUTH_STORAGE_KEY } from "./useAuth";
 
 type Phase =
   | { kind: "playing" }
@@ -35,7 +34,7 @@ export type GameState = {
   currentAttemptResult: RoundResult | null;
 };
 
-export function useDailyGame(): GameState {
+export function useDailyGame(username: string | null): GameState {
   const [draw, setDraw]           = useState<Draw>(() => getDailyDraw());
   const [phase, setPhase]         = useState<Phase>({ kind: "playing" });
   const [attempts, setAttempts]   = useState<AttemptRecord[]>([]);
@@ -46,7 +45,7 @@ export function useDailyGame(): GameState {
   const [isInputValid, setIsInputValid] = useState<boolean | null>(null);
   const [currentAttemptResult, setCurrentAttemptResult] = useState<RoundResult | null>(null);
 
-  // Restore persisted state on mount
+  // Restore persisted state on mount + retry pending score submission
   useEffect(() => {
     const saved = loadDailyState();
     if (saved) {
@@ -62,7 +61,24 @@ export function useDailyGame(): GameState {
       if (saved.bestPossibleScore >= 0) {
         setTopWords(solveTopN(saved.draw, mainDictionary, 10));
       }
+
+      // Retry score submission if the game is done but score wasn't confirmed
+      if (saved.completed && !saved.scoreSubmitted && username) {
+        const lastAttempt = saved.attempts[saved.attempts.length - 1];
+        if (lastAttempt) {
+          submitScore({
+            username,
+            date:          saved.date,
+            score:         lastAttempt.total,
+            best_possible: saved.bestPossibleScore,
+            attempts:      saved.attempts.length,
+          }).then(ok => {
+            if (ok) saveDailyState({ ...saved, scoreSubmitted: true });
+          });
+        }
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounced input validity check (300 ms)
@@ -118,17 +134,18 @@ export function useDailyGame(): GameState {
     setPhase(nextPhase);
 
     const todayKey = getTodayKey();
-    saveDailyState({
-      _v: 1,
+    const stateToSave = {
+      _v: 1 as const,
       date:              todayKey,
       draw,
       attempts:          newAttempts,
       bestPossibleScore: newBestScore,
       bestWord:          newBestWord,
       completed:         nextPhase.kind === "completed",
-    });
+      scoreSubmitted:    false,
+    };
+    saveDailyState(stateToSave);
 
-    const username = localStorage.getItem(AUTH_STORAGE_KEY);
     if (username) {
       submitScore({
         username,
@@ -136,9 +153,11 @@ export function useDailyGame(): GameState {
         score:         result.total,
         best_possible: newBestScore,
         attempts:      newAttempts.length,
+      }).then(ok => {
+        if (ok) saveDailyState({ ...stateToSave, scoreSubmitted: true });
       });
     }
-  }, [draw, inputWord, attempts, bestPossibleScore, bestWord, topWords]);
+  }, [draw, inputWord, attempts, bestPossibleScore, bestWord, topWords, username]);
 
   const retryRound = useCallback(() => {
     setInputWord("");

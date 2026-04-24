@@ -14,6 +14,7 @@ export type DailyState = {
   bestPossibleScore: number;    // -1 until first submit
   bestWord: string | null;      // null until first submit
   completed: boolean;
+  scoreSubmitted?: boolean;     // true once backend confirmed the score
 };
 
 const STORAGE_KEY = "quadra:daily";
