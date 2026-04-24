@@ -1,17 +1,28 @@
 /**
- * One-time script to build src/engine/data/lefff-words.json from the LEFFF lexicon.
+ * One-time script to build src/engine/data/lefff-words.json from the LEFFF lexicon,
+ * and src/engine/data/supplement-words.json from Dicollecte/Hunspell fr_FR.
  *
  * Sources:
- *   - LEFFF 3.4 (Lexique des Formes Fléchies du Français) — INRIA/Alexina
+ *   - LEFFF 3.4 (Lexique des Formes Fléchies du Français) — INRIA/Alexina, LGPL-LR
  *     https://github.com/ClaudeCoulombe/FrenchLefffLemmatizer
+ *     ~400k inflected forms (conjugaisons, pluriels, féminins…)
  *
- * Format of each line: form\tPOS\tlemma\tfeatures
- * We extract column 0 (form) and keep only real French words.
+ *   - Dicollecte/Hunspell fr_FR — MPL-2.0 (npm: dictionary-fr)
+ *     ~84k lemmes de base, maintenance active, meilleure couverture des emprunts
+ *     modernes (krav-maga, hashtag, snowboard, taekwondo…)
+ *     Le supplément = lemmes Dicollecte absents de LEFFF, noms propres exclus.
  *
- * Run: npx tsx scripts/build-dictionary.ts
+ * The two files are merged at runtime in src/engine/mainDictionary.ts.
+ *
+ * Steps:
+ *   1. curl -o /tmp/lefff-3.4.mlex https://raw.githubusercontent.com/ClaudeCoulombe/FrenchLefffLemmatizer/master/french_lefff_lemmatizer/data/lefff-3.4.mlex
+ *      curl -o /tmp/lefff-3.4-addition.mlex https://raw.githubusercontent.com/ClaudeCoulombe/FrenchLefffLemmatizer/master/french_lefff_lemmatizer/data/lefff-3.4-addition.mlex
+ *   2. npx tsx scripts/build-dictionary.ts
+ *
+ * Requires dictionary-fr in devDependencies (npm install).
  */
 
-import { mkdirSync, createReadStream } from "fs";
+import { mkdirSync, createReadStream, readFileSync } from "fs";
 import { writeFile } from "fs/promises";
 import { createInterface } from "readline";
 import path from "path";
@@ -19,6 +30,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = path.join(__dirname, "../src/engine/data/lefff-words.json");
+const SUPPLEMENT_PATH = path.join(__dirname, "../src/engine/data/supplement-words.json");
+const DICOLLECTE_DIC = path.join(__dirname, "../node_modules/dictionary-fr/index.dic");
 
 // These files are downloaded by curl before running this script:
 //   curl -o /tmp/lefff-3.4.mlex https://raw.githubusercontent.com/ClaudeCoulombe/FrenchLefffLemmatizer/master/french_lefff_lemmatizer/data/lefff-3.4.mlex
@@ -79,6 +92,28 @@ async function main() {
   mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   await writeFile(OUT_PATH, JSON.stringify(words), "utf-8");
   console.log(`\nWritten to ${OUT_PATH}`);
+
+  // Build supplement: Dicollecte lemmes absent du LEFFF, noms propres exclus
+  console.log(`\nBuilding supplement from ${DICOLLECTE_DIC} ...`);
+  const dicRaw = readFileSync(DICOLLECTE_DIC, "utf-8");
+  const dicLines = dicRaw.split("\n").slice(1); // skip entry count
+  const supplementSet = new Set<string>();
+  for (const line of dicLines) {
+    const rawForm = line.split("/")[0].trim();
+    if (/^[A-ZÀÂÄÉÈÊËÎÏÔÙÛÜŒ]/.test(rawForm)) continue; // noms propres
+    const form = rawForm.toLowerCase();
+    if (form.length < 2) continue;
+    if (!WORD_RE.test(form)) continue;
+    if (!wordSet.has(form)) supplementSet.add(form);
+  }
+  const supplement = Array.from(supplementSet).sort();
+  console.log(`Supplement size: ${supplement.length}`);
+  const supplementChecks = ["krav-maga", "hashtag", "snowboard", "taekwondo", "selfie"];
+  for (const w of supplementChecks) {
+    console.log(`  "${w}" in supplement: ${supplementSet.has(w)} / in lefff: ${wordSet.has(w)}`);
+  }
+  await writeFile(SUPPLEMENT_PATH, JSON.stringify(supplement), "utf-8");
+  console.log(`Written to ${SUPPLEMENT_PATH}`);
 }
 
 main().catch((e) => {
