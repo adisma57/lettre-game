@@ -62,18 +62,29 @@ export function useDailyGame(username: string | null): GameState {
         setTopWords(solveTopN(saved.draw, mainDictionary, 10));
       }
 
-      // Retry score submission if the game is done but score wasn't confirmed
-      if (saved.completed && !saved.scoreSubmitted && username) {
-        const lastAttempt = saved.attempts[saved.attempts.length - 1];
-        if (lastAttempt) {
-          submitScore({
-            username,
-            date:          saved.date,
-            score:         lastAttempt.total,
-            best_possible: saved.bestPossibleScore,
-            attempts:      saved.attempts.length,
-          }).then(ok => {
-            if (ok) saveDailyState({ ...saved, scoreSubmitted: true });
+      // Retry any attempts not yet confirmed by the backend
+      if (username && saved.attempts.length > 0) {
+        const confirmed = new Set(saved.submittedAttempts ?? []);
+        const pending = saved.attempts
+          .map((a, i) => ({ attemptNum: i + 1, attempt: a }))
+          .filter(({ attemptNum }) => !confirmed.has(attemptNum));
+
+        if (pending.length > 0) {
+          const newConfirmed = [...confirmed];
+          Promise.all(
+            pending.map(({ attemptNum, attempt }) =>
+              submitScore({
+                username,
+                date:          saved.date,
+                attempt_num:   attemptNum,
+                score:         attempt.total,
+                best_possible: saved.bestPossibleScore,
+              }).then(ok => { if (ok) newConfirmed.push(attemptNum); }),
+            ),
+          ).then(() => {
+            if (newConfirmed.length > confirmed.size) {
+              saveDailyState({ ...saved, submittedAttempts: newConfirmed });
+            }
           });
         }
       }
@@ -134,6 +145,7 @@ export function useDailyGame(username: string | null): GameState {
     setPhase(nextPhase);
 
     const todayKey = getTodayKey();
+    const attemptNum = newAttempts.length;
     const stateToSave = {
       _v: 1 as const,
       date:              todayKey,
@@ -142,7 +154,7 @@ export function useDailyGame(username: string | null): GameState {
       bestPossibleScore: newBestScore,
       bestWord:          newBestWord,
       completed:         nextPhase.kind === "completed",
-      scoreSubmitted:    false,
+      submittedAttempts: (loadDailyState()?.submittedAttempts ?? []),
     };
     saveDailyState(stateToSave);
 
@@ -150,11 +162,17 @@ export function useDailyGame(username: string | null): GameState {
       submitScore({
         username,
         date:          todayKey,
+        attempt_num:   attemptNum,
         score:         result.total,
         best_possible: newBestScore,
-        attempts:      newAttempts.length,
       }).then(ok => {
-        if (ok) saveDailyState({ ...stateToSave, scoreSubmitted: true });
+        if (ok) {
+          const latest = loadDailyState();
+          const already = latest?.submittedAttempts ?? [];
+          if (!already.includes(attemptNum)) {
+            saveDailyState({ ...(latest ?? stateToSave), submittedAttempts: [...already, attemptNum] });
+          }
+        }
       });
     }
   }, [draw, inputWord, attempts, bestPossibleScore, bestWord, topWords, username]);

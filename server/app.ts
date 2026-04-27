@@ -5,7 +5,7 @@ import {
   ensureSchema,
   findUserIdByUsername,
   getLeaderboard,
-  upsertScore,
+  insertAttempt,
   insertUser,
   upsertDailyPuzzle,
   usernameExists,
@@ -87,29 +87,29 @@ app.post("/scores", withDb, async (c) => {
     .json()
     .catch(() => ({}))) as {
     date?: string;
+    attempt_num?: number;
     score?: number;
     best_possible?: number;
-    attempts?: number;
   };
 
-  const { date, score, best_possible, attempts } = body;
+  const { date, attempt_num, score, best_possible } = body;
   if (
     typeof date !== "string" ||
+    typeof attempt_num !== "number" ||
     typeof score !== "number" ||
-    typeof best_possible !== "number" ||
-    typeof attempts !== "number"
+    typeof best_possible !== "number"
   ) {
-    return c.json({ error: "Champs requis : date, score, best_possible, attempts." }, 400);
+    return c.json({ error: "Champs requis : date, attempt_num, score, best_possible." }, 400);
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return c.json({ error: "Format de date invalide (YYYY-MM-DD attendu)." }, 400);
   }
-  if (score < 0 || best_possible < 0 || attempts < 1 || attempts > 3) {
+  if (score < 0 || best_possible < 0 || attempt_num < 1 || attempt_num > 3) {
     return c.json({ error: "Valeurs hors limites." }, 400);
   }
 
   await upsertDailyPuzzle(date, best_possible);
-  await upsertScore(userId, date, score, best_possible, attempts);
+  await insertAttempt(userId, date, attempt_num, score, best_possible);
 
   return c.json({ ok: true });
 });

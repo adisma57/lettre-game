@@ -42,9 +42,9 @@ export async function createUser(username: string): Promise<CreateUserResult> {
 export async function submitScore(payload: {
   username: string;
   date: string;
+  attempt_num: number;
   score: number;
   best_possible: number;
-  attempts: number;
 }): Promise<boolean> {
   const { username, ...body } = payload;
   const MAX_ATTEMPTS = 3;
