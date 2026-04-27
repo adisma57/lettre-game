@@ -54,9 +54,9 @@ type MemUser = { id: number; username: string; createdAt: Date };
 type MemScore = {
   userId: number;
   date: string;
+  attemptNum: number;
   score: number;
   best_possible: number;
-  attempts: number;
 };
 
 const mem = {
@@ -106,12 +106,21 @@ export async function ensureSchema(): Promise<void> {
       id             SERIAL PRIMARY KEY,
       user_id        INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
       date           TEXT    NOT NULL,
+      attempt_num    INTEGER NOT NULL DEFAULT 1,
       score          INTEGER NOT NULL,
       best_possible  INTEGER NOT NULL,
-      attempts       INTEGER NOT NULL,
-      UNIQUE (user_id, date)
+      UNIQUE (user_id, date, attempt_num)
     )
   `;
+
+  // Migration: add attempt_num to tables created before this schema version
+  await sql`ALTER TABLE scores ADD COLUMN IF NOT EXISTS attempt_num INTEGER NOT NULL DEFAULT 1`;
+  // Migration: drop old single-score-per-day unique constraint if it exists
+  await sql`ALTER TABLE scores DROP CONSTRAINT IF EXISTS scores_user_id_date_key`;
+  // Migration: drop attempts column no longer needed
+  await sql`ALTER TABLE scores DROP COLUMN IF EXISTS attempts`;
+  // Migration: ensure new unique index exists
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS scores_user_date_attempt_key ON scores (user_id, date, attempt_num)`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS daily_puzzles (
@@ -158,31 +167,26 @@ export async function findUserIdByUsername(
   return rows[0]?.id ?? null;
 }
 
-export async function upsertScore(
+export async function insertAttempt(
   userId: number,
   date: string,
+  attemptNum: number,
   score: number,
   best_possible: number,
-  attempts: number,
 ): Promise<void> {
   if (isMemoryBackend()) {
-    const existing = mem.scores.find((s) => s.userId === userId && s.date === date);
-    if (existing) {
-      existing.score = Math.max(existing.score, score);
-      existing.attempts = attempts;
-    } else {
-      mem.scores.push({ userId, date, score, best_possible, attempts });
-    }
+    const exists = mem.scores.some(
+      s => s.userId === userId && s.date === date && s.attemptNum === attemptNum,
+    );
+    if (!exists) mem.scores.push({ userId, date, attemptNum, score, best_possible });
     return;
   }
 
   const sql = getNeon();
   await sql`
-    INSERT INTO scores (user_id, date, score, best_possible, attempts)
-    VALUES (${userId}, ${date}, ${score}, ${best_possible}, ${attempts})
-    ON CONFLICT (user_id, date) DO UPDATE SET
-      score    = GREATEST(excluded.score, scores.score),
-      attempts = excluded.attempts
+    INSERT INTO scores (user_id, date, attempt_num, score, best_possible)
+    VALUES (${userId}, ${date}, ${attemptNum}, ${score}, ${best_possible})
+    ON CONFLICT (user_id, date, attempt_num) DO NOTHING
   `;
 }
 
@@ -220,24 +224,40 @@ function currentMonthStartUtc(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
-const LEADERBOARD_SELECT = `
+const WEEKLY_MONTHLY_LEADERBOARD = (whereClause: string) => `
+  WITH daily_best AS (
+    SELECT user_id, date, MAX(score) AS score
+    FROM scores
+    ${whereClause}
+    GROUP BY user_id, date
+  )
   SELECT
     u.username,
-    SUM(s.score)::int                   AS total_score,
-    COUNT(*)::int                       AS game_count,
-    MAX(s.score)                        AS best_score,
-    u.created_at                        AS created_at
-  FROM scores s
-  JOIN users u ON u.id = s.user_id
+    SUM(db.score)::int  AS total_score,
+    COUNT(*)::int       AS game_count,
+    MAX(db.score)       AS best_score,
+    u.created_at        AS created_at
+  FROM daily_best db
+  JOIN users u ON u.id = db.user_id
+  GROUP BY u.id, u.username, u.created_at
+  ORDER BY total_score DESC, game_count DESC
 `;
-const LEADERBOARD_GROUPBY = `GROUP BY u.id, u.username, u.created_at`;
 
 export async function getLeaderboard(
   sort: "weekly" | "monthly" | "global",
 ): Promise<LeaderboardRow[]> {
   if (isMemoryBackend()) {
     if (sort === "global") {
-      // Build per-score accuracy list
+      // Aggregate best score per (userId, date)
+      const dailyBestMap = new Map<string, MemScore>();
+      for (const s of mem.scores) {
+        const key = `${s.userId}:${s.date}`;
+        const cur = dailyBestMap.get(key);
+        if (!cur || s.score > cur.score) dailyBestMap.set(key, s);
+      }
+      const dailyBest = [...dailyBestMap.values()];
+
+      // Build per-day accuracy list
       const allAccuracies: number[] = [];
       const byUser = new Map<
         number,
@@ -246,7 +266,7 @@ export async function getLeaderboard(
       for (const u of mem.usersById.values()) {
         byUser.set(u.id, { username: u.username, createdAt: u.createdAt, accuracies: [] });
       }
-      for (const s of mem.scores) {
+      for (const s of dailyBest) {
         const entry = byUser.get(s.userId);
         if (!entry) continue;
         const bp = mem.dailyPuzzles.get(s.date) ?? s.best_possible;
@@ -289,6 +309,15 @@ export async function getLeaderboard(
         ? currentWeekMondayUtc()
         : currentMonthStartUtc();
 
+    // Aggregate best score per (userId, date) within the period
+    const dailyBestMap = new Map<string, MemScore>();
+    for (const s of mem.scores) {
+      if (s.date < minDate) continue;
+      const key = `${s.userId}:${s.date}`;
+      const cur = dailyBestMap.get(key);
+      if (!cur || s.score > cur.score) dailyBestMap.set(key, s);
+    }
+
     const byUser = new Map<
       number,
       { username: string; createdAt: Date; scores: number[] }
@@ -296,8 +325,7 @@ export async function getLeaderboard(
     for (const u of mem.usersById.values()) {
       byUser.set(u.id, { username: u.username, createdAt: u.createdAt, scores: [] });
     }
-    for (const s of mem.scores) {
-      if (s.date < minDate) continue;
+    for (const s of dailyBestMap.values()) {
       const entry = byUser.get(s.userId);
       if (entry) entry.scores.push(s.score);
     }
@@ -333,13 +361,22 @@ export async function getLeaderboard(
 
   if (sort === "global") {
     const raw = (await sql.query(`
-      WITH global AS (
-        SELECT COALESCE(
-          AVG(s.score::float / NULLIF(COALESCE(dp.best_possible, s.best_possible), 0)),
-          0.5
-        ) AS global_avg
+      WITH daily_best AS (
+        SELECT
+          s.user_id,
+          s.date,
+          MAX(s.score) AS score,
+          COALESCE(MAX(dp.best_possible), MAX(s.best_possible)) AS best_possible
         FROM scores s
         LEFT JOIN daily_puzzles dp ON dp.date = s.date
+        GROUP BY s.user_id, s.date
+      ),
+      global AS (
+        SELECT COALESCE(
+          AVG(db.score::float / NULLIF(db.best_possible, 0)),
+          0.5
+        ) AS global_avg
+        FROM daily_best db
       ),
       player_stats AS (
         SELECT
@@ -347,10 +384,9 @@ export async function getLeaderboard(
           u.username,
           u.created_at,
           COUNT(*)::int AS game_count,
-          AVG(s.score::float / NULLIF(COALESCE(dp.best_possible, s.best_possible), 0)) AS avg_accuracy
-        FROM scores s
-        JOIN users u ON u.id = s.user_id
-        LEFT JOIN daily_puzzles dp ON dp.date = s.date
+          AVG(db.score::float / NULLIF(db.best_possible, 0)) AS avg_accuracy
+        FROM daily_best db
+        JOIN users u ON u.id = db.user_id
         GROUP BY u.id, u.username, u.created_at
       )
       SELECT
@@ -382,12 +418,10 @@ export async function getLeaderboard(
   // DATE_TRUNC('week', …) in PostgreSQL uses ISO weeks (Monday start).
   const whereClause =
     sort === "weekly"
-      ? `WHERE s.date::date >= DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')::date`
-      : `WHERE s.date::date >= DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')::date`;
+      ? `WHERE date::date >= DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')::date`
+      : `WHERE date::date >= DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')::date`;
 
-  const raw = (await sql.query(
-    `${LEADERBOARD_SELECT} ${whereClause} ${LEADERBOARD_GROUPBY} ORDER BY total_score DESC, game_count DESC`,
-  )) as RawRow[];
+  const raw = (await sql.query(WEEKLY_MONTHLY_LEADERBOARD(whereClause))) as RawRow[];
 
   return raw.map((r, i) => ({
     rank: i + 1,
