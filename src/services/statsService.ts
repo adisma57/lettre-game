@@ -1,4 +1,9 @@
-const STATS_KEY = "quadra:stats:v1";
+import type { Lang } from "../i18n/translations";
+
+// "quadra:stats:v1" for FR (backward-compat), "quadra:stats:v1:en" for EN
+function statsKey(lang: Lang): string {
+  return lang === "en" ? "quadra:stats:v1:en" : "quadra:stats:v1";
+}
 
 export interface DailyGameRecord {
   date: string;
@@ -121,9 +126,9 @@ function recompute(stats: StatsData): StatsData {
   };
 }
 
-export function getStats(): StatsData {
+export function getStats(lang: Lang = "fr"): StatsData {
   try {
-    const raw = localStorage.getItem(STATS_KEY);
+    const raw = localStorage.getItem(statsKey(lang));
     if (!raw) return defaultStats();
     const parsed = JSON.parse(raw) as StatsData;
     if (parsed._v !== 1) return defaultStats();
@@ -133,28 +138,36 @@ export function getStats(): StatsData {
   }
 }
 
-function save(stats: StatsData): void {
+function save(stats: StatsData, lang: Lang): void {
   try {
-    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    localStorage.setItem(statsKey(lang), JSON.stringify(stats));
   } catch {
     console.error("[statsService] Failed to save stats");
   }
 }
 
-export function recordDailyGame(record: DailyGameRecord): void {
-  const stats = getStats();
+export function recordDailyGame(record: DailyGameRecord, lang: Lang = "fr"): void {
+  const stats = getStats(lang);
   const idx = stats.dailyGames.findIndex((g) => g.date === record.date);
   if (idx >= 0) {
     stats.dailyGames[idx] = record;
   } else {
     stats.dailyGames.push(record);
   }
-  save(recompute(stats));
+  save(recompute(stats), lang);
 }
 
-export function recordTrainingGame(score: number): void {
-  const stats = getStats();
+export function recordTrainingGame(score: number, lang: Lang = "fr"): void {
+  const stats = getStats(lang);
   stats.trainingGamesPlayed++;
   stats.trainingTotalScore += score;
-  save(stats);
+  save(stats, lang);
+}
+
+export function resetStats(lang: Lang = "fr"): void {
+  try {
+    localStorage.removeItem(statsKey(lang));
+  } catch {
+    console.error("[statsService] Failed to reset stats");
+  }
 }

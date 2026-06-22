@@ -74,7 +74,7 @@ export function useTraining(): TrainingState {
     setTop3(best3);
     setCurrentResult(result);
     setPhase({ kind: "results" });
-    recordTrainingGame(result.total);
+    recordTrainingGame(result.total, lang);
   }, [draw, inputWord, resources]);
 
   const retryRound = useCallback(() => {

@@ -1,6 +1,6 @@
-import { useMemo } from "react";
-import { getStats } from "../services/statsService";
-import { useT } from "../contexts/LanguageContext";
+import { useMemo, useState } from "react";
+import { getStats, resetStats } from "../services/statsService";
+import { useLanguage, useT } from "../contexts/LanguageContext";
 
 function StatTile({
   label,
@@ -57,18 +57,47 @@ function AttemptRow({ n, count, total, }: { n: 1 | 2 | 3; count: number; total: 
 
 export default function Stats() {
   const t = useT();
-  const s = useMemo(() => getStats(), []);
+  const { lang } = useLanguage();
+  const [resetKey, setResetKey] = useState(0);
+  const [confirming, setConfirming] = useState(false);
+
+  const s = useMemo(() => getStats(lang), [lang, resetKey]);
   const gamesPlayed = s.dailyGames.length;
   const trainingAvg =
     s.trainingGamesPlayed > 0
       ? Math.round(s.trainingTotalScore / s.trainingGamesPlayed)
       : 0;
 
+  function handleReset() {
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    resetStats(lang);
+    setResetKey(k => k + 1);
+    setConfirming(false);
+  }
+
   return (
     <main className="mx-auto max-w-lg px-4 py-8 space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-fg">{t.stats.title}</h1>
-        <p className="text-sm text-muted mt-1">{t.stats.subtitle}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-fg">{t.stats.title}</h1>
+          <p className="text-sm text-muted mt-1">{t.stats.subtitle}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleReset}
+          onBlur={() => setConfirming(false)}
+          className={[
+            "shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+            confirming
+              ? "border-error/50 bg-error/10 text-error"
+              : "border-line text-muted hover:border-error/40 hover:text-error",
+          ].join(" ")}
+        >
+          {confirming ? t.stats.resetConfirm : t.stats.resetStats}
+        </button>
       </div>
 
       {/* Daily performance */}

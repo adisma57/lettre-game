@@ -171,7 +171,7 @@ export function useDailyGame(username: string | null): GameState {
         bestPossible: newBestScore,
         attempts:     newAttempts.length,
         perfect:      bestPlayerScore >= newBestScore,
-      });
+      }, lang);
     }
 
     const attemptNum = newAttempts.length;

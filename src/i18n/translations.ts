@@ -72,6 +72,8 @@ export type Translations = {
     trainingPlayed: string;
     trainingAvg: string;
     empty: string;
+    resetStats: string;
+    resetConfirm: string;
   };
   auth: {
     title: string;
@@ -176,6 +178,8 @@ const fr: Translations = {
     trainingPlayed: "Parties jouées",
     trainingAvg: "Score moyen",
     empty: "Joue ta première partie pour voir tes stats !",
+    resetStats: "Réinitialiser les stats",
+    resetConfirm: "Remettre toutes les stats à zéro ?",
   },
   auth: {
     title: "Choisissez un pseudo",
@@ -280,6 +284,8 @@ const en: Translations = {
     trainingPlayed: "Games played",
     trainingAvg: "Average score",
     empty: "Play your first game to see your stats!",
+    resetStats: "Reset stats",
+    resetConfirm: "Reset all stats to zero?",
   },
   auth: {
     title: "Choose a username",

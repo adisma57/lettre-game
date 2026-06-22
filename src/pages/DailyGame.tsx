@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDailyGame } from "../hooks/useDailyGame";
 import { useAuth } from "../hooks/useAuth";
-import { useT } from "../contexts/LanguageContext";
+import { useLanguage, useT } from "../contexts/LanguageContext";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
@@ -17,7 +17,8 @@ function tomorrow(): Date {
 
 function PostGameStats() {
   const t = useT();
-  const s = getStats();
+  const { lang } = useLanguage();
+  const s = getStats(lang);
   const gamesPlayed = s.dailyGames.length;
 
   return (
