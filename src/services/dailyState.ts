@@ -103,3 +103,17 @@ export function saveArchiveState(state: DailyState, lang: Lang): void {
     console.error("Failed to save archive state to localStorage");
   }
 }
+
+export function clearAllArchiveStates(): void {
+  try {
+    const prefix = "quadra:archive:";
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) toRemove.push(key);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+  } catch {
+    console.error("Failed to clear archive states from localStorage");
+  }
+}

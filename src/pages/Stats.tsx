@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { getStats, resetStats } from "../services/statsService";
-import { clearDailyState } from "../services/dailyState";
+import { clearDailyState, clearAllArchiveStates } from "../services/dailyState";
 import { useLanguage, useT } from "../contexts/LanguageContext";
 
 function StatTile({
@@ -74,9 +74,10 @@ export default function Stats() {
       setConfirming(true);
       return;
     }
-    // Clear stats and today's game state for both languages
+    // Clear stats, today's game, and all archive games for both languages
     resetStats("fr"); resetStats("en");
     clearDailyState("fr"); clearDailyState("en");
+    clearAllArchiveStates();
     setResetKey(k => k + 1);
     setConfirming(false);
   }
