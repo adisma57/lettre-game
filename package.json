@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.4.1",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^7.4.1",
     "@hono/node-server": "^1.19.12",
     "@neondatabase/serverless": "^1.0.2",
