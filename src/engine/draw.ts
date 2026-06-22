@@ -2,23 +2,23 @@ import type { Draw } from "./types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-// These letters are rare in French; they receive a lower weight so the draw
-// pool produces playable hands more often.
-const RARE_LETTERS = new Set(["J", "K", "Q", "W", "X", "Y", "Z", "H"]);
+function buildPool(rareLetters: Set<string>): string[] {
+  return ALPHABET.flatMap((l) =>
+    Array<string>(rareLetters.has(l) ? 1 : 4).fill(l)
+  );
+}
 
-const LETTER_WEIGHT: Record<string, number> = Object.fromEntries(
-  ALPHABET.map((l) => [l, RARE_LETTERS.has(l) ? 1 : 4])
-);
+// French: W, X, Y, Z, H, J, K, Q are rare
+const FR_RARE = new Set(["H", "J", "K", "Q", "W", "X", "Y", "Z"]);
+export const WEIGHTED_POOL: string[] = buildPool(FR_RARE);
 
-// Flat pool where each letter appears as many times as its weight.
-// Sampling a uniform index from this array gives a weighted random draw.
-export const WEIGHTED_POOL: string[] = ALPHABET.flatMap((l) =>
-  Array<string>(LETTER_WEIGHT[l]).fill(l)
-);
+// English: J, K, Q, V, X, Z are rare; W, Y, H are common
+const EN_RARE = new Set(["J", "K", "Q", "V", "X", "Z"]);
+export const WEIGHTED_POOL_EN: string[] = buildPool(EN_RARE);
 
-export function generateDrawWeighted(count = 4): Draw {
+export function generateDrawWeighted(count = 4, pool = WEIGHTED_POOL): Draw {
   return Array.from({ length: count }, () =>
-    WEIGHTED_POOL[Math.floor(Math.random() * WEIGHTED_POOL.length)]
+    pool[Math.floor(Math.random() * pool.length)]
   );
 }
 
@@ -46,11 +46,11 @@ function dateToSeed(date: Date): number {
 
 /**
  * Returns the same Draw for every user on the same UTC calendar day.
- * Pure function — safe to call server-side with the same result.
+ * Pass a language-specific pool to get a consistent per-language daily draw.
  */
-export function getDailyDraw(date: Date = new Date()): Draw {
+export function getDailyDraw(date: Date = new Date(), pool = WEIGHTED_POOL): Draw {
   const rng = mulberry32(dateToSeed(date));
   return Array.from({ length: 4 }, () =>
-    WEIGHTED_POOL[Math.floor(rng() * WEIGHTED_POOL.length)]
+    pool[Math.floor(rng() * pool.length)]
   );
 }

@@ -1,44 +1,21 @@
 import { Link } from "react-router-dom";
+import { useT } from "../contexts/LanguageContext";
 
-const PRIMARY_CARDS = [
-  {
-    to: "/daily",
-    icon: "◈",
-    title: "Défi du jour",
-    description:
-      "Un tirage identique pour tous. 3 essais pour battre le meilleur score possible.",
-    cta: "Jouer",
-    accent: true,
-  },
-  {
-    to: "/training",
-    icon: "◎",
-    title: "Entraînement",
-    description:
-      "Tirages aléatoires en boucle. Pas de limite, pas de pression.",
-    cta: "S\u2019entraîner",
-    accent: false,
-  },
-  {
-    to: "/solver",
-    icon: "◉",
-    title: "Solveur",
-    description:
-      "Entrez un tirage et découvrez les 10 meilleurs mots possibles.",
-    cta: "Analyser",
-    accent: false,
-  },
-] as const;
-
-// Decorative letter tiles shown in the hero
 const HERO_TILES = ["Q", "U", "A", "D"];
 
 export default function Home() {
+  const t = useT();
+
+  const PRIMARY_CARDS = [
+    { to: "/daily",    icon: "◈", ...t.home.daily,    accent: true  },
+    { to: "/training", icon: "◎", ...t.home.training, accent: false },
+    { to: "/solver",   icon: "◉", ...t.home.solver,   accent: false },
+  ] as const;
+
   return (
     <div>
       {/* Hero */}
       <section className="relative py-16 text-center overflow-hidden">
-        {/* Faint giant lettermark behind everything */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 flex items-center justify-center select-none"
@@ -48,7 +25,6 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Decorative draw tiles */}
         <div className="relative mb-8 flex justify-center gap-3">
           {HERO_TILES.map((letter, i) => (
             <div
@@ -61,12 +37,11 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Title */}
         <h1 className="animate-fade-up font-display text-[2.6rem] sm:text-[3.2rem] font-extrabold tracking-[0.04em] text-fg text-center w-full" style={{ animationDelay: "200ms" }}>
           QUADRA
         </h1>
         <p className="animate-fade-up mt-4 text-base text-muted" style={{ animationDelay: "300ms" }}>
-          Formez le meilleur mot à partir d&apos;un tirage de 4 lettres.
+          {t.home.tagline}
         </p>
       </section>
 
@@ -84,7 +59,6 @@ export default function Home() {
                 : "border-line bg-surface hover:border-primary/40 hover:bg-elevated",
             ].join(" ")}
           >
-            {/* Accent dot for daily challenge */}
             {accent && (
               <div className="absolute right-4 top-4 h-2 w-2 rounded-full bg-primary animate-glow-pulse" />
             )}
@@ -105,13 +79,12 @@ export default function Home() {
         ))}
       </section>
 
-      {/* Rules link */}
       <div className="mt-10 text-center animate-fade-up" style={{ animationDelay: "500ms" }}>
         <Link
           to="/rules"
           className="text-sm text-muted transition-colors hover:text-primary underline-offset-4 hover:underline"
         >
-          Lire les règles du jeu
+          {t.home.rulesLink}
         </Link>
       </div>
     </div>

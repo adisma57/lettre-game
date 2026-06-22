@@ -1,4 +1,5 @@
 import type { Draw } from "../engine/types";
+import type { Lang } from "../i18n/translations";
 
 export type AttemptRecord = {
   rawWord: string;
@@ -17,7 +18,10 @@ export type DailyState = {
   submittedAttempts?: number[]; // attempt_num values confirmed by the backend
 };
 
-const STORAGE_KEY = "quadra:daily";
+// "quadra:daily" for FR (backward-compat), "quadra:daily:en" for EN
+function storageKey(lang: Lang): string {
+  return lang === "en" ? "quadra:daily:en" : "quadra:daily";
+}
 
 /** Returns today's UTC date as "YYYY-MM-DD". */
 export function getTodayKey(): string {
@@ -29,13 +33,12 @@ export function getTodayKey(): string {
 }
 
 /**
- * Loads today's game state from localStorage.
- * Returns null if the key is absent, the schema version is wrong,
- * or the stored date is not today (stale — new day).
+ * Loads today's game state from localStorage for the given language.
+ * Returns null if absent, wrong schema version, or stale (new day).
  */
-export function loadDailyState(): DailyState | null {
+export function loadDailyState(lang: Lang = "fr"): DailyState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(lang));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DailyState>;
     if (parsed._v !== 1) return null;
@@ -46,9 +49,9 @@ export function loadDailyState(): DailyState | null {
   }
 }
 
-export function saveDailyState(state: DailyState): void {
+export function saveDailyState(state: DailyState, lang: Lang = "fr"): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(storageKey(lang), JSON.stringify(state));
   } catch {
     console.error("Failed to save daily state to localStorage");
   }

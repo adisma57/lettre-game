@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
-import rulesData from "../content/rules.json";
+import rulesFr from "../content/rules.json";
+import rulesEn from "../content/rules.en.json";
+import { useLanguage } from "../contexts/LanguageContext";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { DrawDisplay } from "../components/game/DrawDisplay";
@@ -141,9 +143,9 @@ function GameModes({ modes }: { modes: GameMode[] }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const rules = rulesData as RulesConfig;
-
 export default function Rules() {
+  const { lang } = useLanguage();
+  const rules = (lang === "en" ? rulesEn : rulesFr) as RulesConfig;
   return (
     <div className="max-w-2xl">
       <h1 className="text-3xl font-bold text-fg">{rules.title}</h1>

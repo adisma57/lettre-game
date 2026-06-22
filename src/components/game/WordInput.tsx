@@ -1,3 +1,5 @@
+import { useT } from "../../contexts/LanguageContext";
+
 interface WordInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -15,10 +17,13 @@ export function WordInput({
   onSubmit,
   isValid,
   error,
-  placeholder = "Entrez un mot...",
+  placeholder,
   disabled = false,
-  submitLabel = "Valider",
+  submitLabel,
 }: WordInputProps) {
+  const t = useT();
+  const resolvedPlaceholder = placeholder ?? t.game.wordPlaceholder;
+  const resolvedSubmitLabel = submitLabel ?? t.game.wordSubmit;
   const borderColor =
     isValid === true  ? "border-success" :
     isValid === false ? "border-error"   :
@@ -36,7 +41,7 @@ export function WordInput({
             onKeyDown={(e) => {
               if (e.key === "Enter" && value.trim()) onSubmit();
             }}
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             disabled={disabled}
             className="min-w-0 flex-1 bg-transparent font-mono text-lg font-semibold tracking-widest text-fg outline-none placeholder:text-muted/40 disabled:opacity-50"
             autoFocus
@@ -50,7 +55,7 @@ export function WordInput({
           disabled={disabled || !value.trim()}
           className="btn-shine h-12 shrink-0 rounded-xl bg-primary px-5 font-display text-sm font-bold tracking-[0.04em] text-white transition-colors hover:bg-primary-dim disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {submitLabel}
+          {resolvedSubmitLabel}
         </button>
       </div>
 

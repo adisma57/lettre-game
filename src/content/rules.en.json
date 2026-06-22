@@ -1,0 +1,112 @@
+{
+  "title": "How to play",
+  "sections": [
+    {
+      "id": "objective",
+      "title": "Objective",
+      "body": "Each round, a 4-letter draw is revealed. Propose an English word that incorporates those letters to score as many points as possible. The better the letters are positioned, the higher your score."
+    },
+    {
+      "id": "valid-words",
+      "title": "Valid words",
+      "body": "Only words found in the English dictionary are accepted. Made-up words, proper nouns and abbreviations are rejected. A rejected submission does not count as an attempt — you can try again."
+    },
+    {
+      "id": "scoring",
+      "title": "Scoring",
+      "body": "A word's score is based on three components:",
+      "formula": "score = (used letters × 3) + order bonus − insertions",
+      "items": [
+        {
+          "label": "Used letter",
+          "points": "+3 pts",
+          "description": "Each draw letter present in your word scores 3 points. Duplicates in the draw count separately."
+        },
+        {
+          "label": "Order bonus",
+          "points": "+3 pts",
+          "description": "If the draw letters appear in your word in exactly the same order as the draw, you earn 3 bonus points."
+        },
+        {
+          "label": "Insertion",
+          "points": "−1 pt",
+          "description": "Each letter not in the draw that sits between the first and last draw-letter positions in your word (the \"zone\") deducts 1 point."
+        }
+      ],
+      "examples": [
+        {
+          "draw": ["S", "T", "A", "R"],
+          "word": "STAR",
+          "score": 15,
+          "note": "4 letters × 3 = 12, +3 order bonus, 0 insertions → 15 pts"
+        },
+        {
+          "draw": ["B", "A", "N", "E"],
+          "word": "BLANKET",
+          "score": 13,
+          "note": "4 letters × 3 = 12, +3 order bonus, −2 insertions (L, K) → 13 pts"
+        },
+        {
+          "draw": ["T", "O", "R", "N"],
+          "word": "THORN",
+          "score": 14,
+          "note": "4 letters × 3 = 12, +3 order bonus, −1 insertion (H) → 14 pts"
+        }
+      ]
+    },
+    {
+      "id": "coloring",
+      "title": "Colour code",
+      "body": "After each attempt, the letters of your word are coloured to show their role in the score:",
+      "colors": [
+        {
+          "role": "ordered",
+          "label": "Orange underlined",
+          "description": "Draw letter in the correct order — contributes to points and to the order bonus."
+        },
+        {
+          "role": "unordered",
+          "label": "Dimmed orange underlined",
+          "description": "Draw letter present in the word but out of order — scores points, no order bonus."
+        },
+        {
+          "role": "insert",
+          "label": "Beige",
+          "description": "Insertion: a foreign letter inside the zone. Deducts 1 point."
+        },
+        {
+          "role": "unused",
+          "label": "Grey",
+          "description": "Letter outside the zone. Does not affect the score positively or negatively."
+        }
+      ]
+    },
+    {
+      "id": "modes",
+      "title": "Game modes",
+      "body": "The app offers four modes:",
+      "modes": [
+        {
+          "name": "Daily challenge",
+          "route": "/daily",
+          "description": "The same draw for all players, refreshed every day at midnight UTC. You have 3 attempts. After each attempt the best possible score is revealed — but not the word. Come back every day to improve."
+        },
+        {
+          "name": "Training",
+          "route": "/training",
+          "description": "Random draws on repeat, with no limit. After each attempt the top 3 best words are revealed. Perfect for exploring strategies and improving freely."
+        },
+        {
+          "name": "Solver",
+          "route": "/solver",
+          "description": "Enter any draw to instantly get the 10 best possible words, ranked by score then word length."
+        },
+        {
+          "name": "My stats",
+          "route": "/stats",
+          "description": "View your local progress: average performance, streaks, perfect scores, and training stats — all stored on your device."
+        }
+      ]
+    }
+  ]
+}

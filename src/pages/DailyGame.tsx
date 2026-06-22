@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useDailyGame } from "../hooks/useDailyGame";
 import { useAuth } from "../hooks/useAuth";
+import { useT } from "../contexts/LanguageContext";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
@@ -8,24 +9,13 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import type { SolverResult } from "../engine/solver";
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-
-const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
-});
-
-function formatUTC(date: Date): string {
-  return dateFmt.format(date);
-}
-
 function tomorrow(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 }
 
-// ─── Top words list ───────────────────────────────────────────────────────────
-
 function TopWordsList({ words }: { words: SolverResult[] }) {
+  const t = useT();
   const [showMore, setShowMore] = useState(false);
 
   const top3  = words.slice(0, 3);
@@ -45,7 +35,7 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
 
   return (
     <div className="mt-5 rounded-xl border border-line bg-elevated p-4">
-      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— Meilleurs mots possibles —</p>
+      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— {t.daily.bestWords} —</p>
       <ol className="space-y-2">
         {top3.map((r, i) => <WordRow key={r.word} r={r} rank={i + 1} />)}
       </ol>
@@ -61,7 +51,7 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
             onClick={() => setShowMore(v => !v)}
             className="mt-3 text-xs text-muted hover:text-fg underline underline-offset-2 transition-colors"
           >
-            {showMore ? "▲ Masquer" : `▼ Voir les ${next7.length} suivant${next7.length > 1 ? "s" : ""}`}
+            {showMore ? t.daily.showLess : t.daily.showMore(next7.length)}
           </button>
         </>
       )}
@@ -69,11 +59,14 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function DailyGame() {
+  const t = useT();
   const { auth } = useAuth();
   const username = auth.status === "authenticated" ? auth.username : null;
+
+  const dateFmt = new Intl.DateTimeFormat(t.daily.dateLocale, {
+    day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+  });
 
   const {
     draw, phase, attempts,
@@ -85,16 +78,13 @@ export default function DailyGame() {
   return (
     <div className="mx-auto max-w-lg">
 
-      {/* Header */}
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-primary">Défi du jour</h1>
-        <span className="text-sm text-muted">{formatUTC(new Date())}</span>
+        <h1 className="text-2xl font-bold text-primary">{t.daily.title}</h1>
+        <span className="text-sm text-muted">{dateFmt.format(new Date())}</span>
       </div>
 
-      {/* Draw tiles */}
       <DrawDisplay letters={draw} className="mb-8" />
 
-      {/* Word input */}
       {phase.kind === "playing" && (
         <div className="mb-6">
           <WordInput
@@ -104,14 +94,13 @@ export default function DailyGame() {
             isValid={isInputValid}
             error={
               currentAttemptResult?.invalidReason === "not_in_dictionary"
-                ? "Mot non reconnu dans le dictionnaire."
+                ? t.daily.notInDict
                 : undefined
             }
           />
         </div>
       )}
 
-      {/* Attempt history */}
       {attempts.map((attempt, idx) => (
         <ScoreCard
           key={idx}
@@ -124,30 +113,28 @@ export default function DailyGame() {
         />
       ))}
 
-      {/* Retry button */}
       {phase.kind === "attempt_shown" && attempts.length < 3 && (
         <Button variant="secondary" onClick={retryRound}>
-          Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
+          {t.daily.retry(3 - attempts.length)}
         </Button>
       )}
 
-      {/* Completed summary */}
       {phase.kind === "completed" && (
         <Card className="mt-6">
           <p className="mb-4 text-xs uppercase tracking-wider text-muted">
-            — Partie terminée —
+            — {t.daily.completed} —
           </p>
 
           {bestWord !== null && bestPossibleScore >= 0 && (
             <p className="mb-3 text-fg">
-              Meilleur mot :{" "}
+              {t.daily.bestWord}{" "}
               <span className="font-bold text-primary">{bestWord}</span>{" "}
               <span className="text-muted">({bestPossibleScore} pts)</span>
             </p>
           )}
 
           <p className="text-sm text-muted">
-            Revenez demain — {formatUTC(tomorrow())}
+            {t.daily.comeBack} {dateFmt.format(tomorrow())}
           </p>
 
           {topWords.length > 0 && <TopWordsList words={topWords} />}

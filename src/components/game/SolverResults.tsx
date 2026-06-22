@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { SolverResult } from "../../engine/solver";
+import { useT } from "../../contexts/LanguageContext";
 
 // ─── Compact list (Training top-3, collapsible) ───────────────────────────────
 
@@ -11,10 +12,12 @@ interface SolverResultsListProps {
 
 export function SolverResultsList({
   results,
-  title = "Meilleurs mots possibles",
+  title,
   collapsible = true,
 }: SolverResultsListProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
+  const resolvedTitle = title ?? t.game.top3Title;
 
   if (results.length === 0) return null;
 
@@ -25,13 +28,13 @@ export function SolverResultsList({
           onClick={() => setOpen((v) => !v)}
           className="text-sm text-muted transition-colors hover:text-fg"
         >
-          {open ? "▲ Masquer le top 3" : "▼ Voir le top 3"}
+          {open ? t.game.hideTop3 : t.game.showTop3}
         </button>
       )}
 
       {(!collapsible || open) && (
         <div className="mt-3 rounded-xl border border-line bg-elevated p-4">
-          <p className="mb-3 text-xs uppercase tracking-wider text-muted">{title}</p>
+          <p className="mb-3 text-xs uppercase tracking-wider text-muted">{resolvedTitle}</p>
           <ol className="space-y-2">
             {results.map((r, i) => (
               <li key={i} className="flex items-baseline justify-between gap-4">
@@ -57,6 +60,7 @@ interface SolverResultsTableProps {
 }
 
 export function SolverResultsTable({ results, draw }: SolverResultsTableProps) {
+  const t = useT();
   if (results.length === 0) return null;
 
   return (
@@ -65,11 +69,11 @@ export function SolverResultsTable({ results, draw }: SolverResultsTableProps) {
         <thead>
           <tr className="border-b border-line text-xs uppercase tracking-wider text-muted">
             <th className="px-3 py-2 text-left">#</th>
-            <th className="px-3 py-2 text-left">Mot</th>
-            <th className="px-3 py-2 text-right">Score</th>
-            <th className="px-3 py-2 text-left">Lettres utilisées</th>
-            <th className="px-3 py-2 text-center">Ordre</th>
-            <th className="px-3 py-2 text-right">Insertions</th>
+            <th className="px-3 py-2 text-left">{t.solver.colWord}</th>
+            <th className="px-3 py-2 text-right">{t.solver.colScore}</th>
+            <th className="px-3 py-2 text-left">{t.solver.colUsed}</th>
+            <th className="px-3 py-2 text-center">{t.solver.colOrder}</th>
+            <th className="px-3 py-2 text-right">{t.solver.colInsert}</th>
           </tr>
         </thead>
         <tbody>
@@ -101,7 +105,7 @@ export function SolverResultsTable({ results, draw }: SolverResultsTableProps) {
         </tbody>
       </table>
       <p className="mt-3 text-xs text-muted">
-        Résultats pour le tirage {draw.join(" · ")}
+        {t.solver.resultsFor(draw.join(" · "))}
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { getStats } from "../services/statsService";
+import { useT } from "../contexts/LanguageContext";
 
 function StatTile({
   label,
@@ -38,15 +39,7 @@ function PerformanceBar({ pct }: { pct: number }) {
   );
 }
 
-function AttemptRow({
-  n,
-  count,
-  total,
-}: {
-  n: 1 | 2 | 3;
-  count: number;
-  total: number;
-}) {
+function AttemptRow({ n, count, total, }: { n: 1 | 2 | 3; count: number; total: number }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
     <div className="flex items-center gap-3">
@@ -57,69 +50,59 @@ function AttemptRow({
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-6 text-right text-xs font-mono text-muted">
-        {count}
-      </span>
+      <span className="w-6 text-right text-xs font-mono text-muted">{count}</span>
     </div>
   );
 }
 
 export default function Stats() {
-  const stats = useMemo(() => getStats(), []);
-  const gamesPlayed = stats.dailyGames.length;
+  const t = useT();
+  const s = useMemo(() => getStats(), []);
+  const gamesPlayed = s.dailyGames.length;
   const trainingAvg =
-    stats.trainingGamesPlayed > 0
-      ? Math.round(stats.trainingTotalScore / stats.trainingGamesPlayed)
+    s.trainingGamesPlayed > 0
+      ? Math.round(s.trainingTotalScore / s.trainingGamesPlayed)
       : 0;
 
   return (
     <main className="mx-auto max-w-lg px-4 py-8 space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-fg">
-          Mes statistiques
-        </h1>
-        <p className="text-sm text-muted mt-1">
-          Progression locale — mise à jour après chaque partie
-        </p>
+        <h1 className="font-display text-2xl font-bold text-fg">{t.stats.title}</h1>
+        <p className="text-sm text-muted mt-1">{t.stats.subtitle}</p>
       </div>
 
-      {/* Performance */}
+      {/* Daily performance */}
       <section className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-          Performance Défi du jour
+          {t.stats.sectionDaily}
         </h2>
         <div className="rounded-2xl border border-line bg-surface p-5 space-y-4">
           <div>
             <div className="flex items-baseline justify-between">
               <span className="text-3xl font-bold font-mono text-primary">
-                {stats.averagePerformance}%
+                {s.averagePerformance}%
               </span>
-              <span className="text-xs text-muted">vs. score max</span>
+              <span className="text-xs text-muted">{t.stats.vsMax}</span>
             </div>
-            <PerformanceBar pct={stats.averagePerformance} />
-            <p className="text-xs text-muted mt-1.5">
-              Score moyen rapporté au meilleur score possible de chaque jour
-            </p>
+            <PerformanceBar pct={s.averagePerformance} />
+            <p className="text-xs text-muted mt-1.5">{t.stats.avgDesc}</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
+            <StatTile label={t.stats.gamesPlayed} value={gamesPlayed} />
             <StatTile
-              label="Parties jouées"
-              value={gamesPlayed}
+              label={t.stats.perfectGames}
+              value={s.perfectGames}
+              highlight={s.perfectGames > 0}
             />
             <StatTile
-              label="Scores parfaits"
-              value={stats.perfectGames}
-              highlight={stats.perfectGames > 0}
+              label={t.stats.bestScore}
+              value={s.bestScore > 0 ? s.bestScore : "—"}
             />
             <StatTile
-              label="Meilleur score"
-              value={stats.bestScore > 0 ? stats.bestScore : "—"}
-            />
-            <StatTile
-              label="Taux de perfection"
+              label={t.stats.perfectRate}
               value={
                 gamesPlayed > 0
-                  ? `${Math.round((stats.perfectGames / gamesPlayed) * 100)}%`
+                  ? `${Math.round((s.perfectGames / gamesPlayed) * 100)}%`
                   : "—"
               }
             />
@@ -130,36 +113,34 @@ export default function Stats() {
       {/* Streak */}
       <section className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-          Régularité
+          {t.stats.sectionStreak}
         </h2>
         <div className="grid grid-cols-2 gap-2">
           <StatTile
-            label="Série actuelle"
-            value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : stats.currentStreak}
-            sub="jours consécutifs"
-            highlight={stats.currentStreak > 1}
+            label={t.stats.currentStreak}
+            value={s.currentStreak > 0 ? `${s.currentStreak} 🔥` : s.currentStreak}
+            sub={t.stats.consecutiveDays}
+            highlight={s.currentStreak > 1}
           />
           <StatTile
-            label="Meilleure série"
-            value={stats.longestStreak}
-            sub="jours consécutifs"
+            label={t.stats.longestStreak}
+            value={s.longestStreak}
+            sub={t.stats.consecutiveDays}
           />
         </div>
       </section>
 
-      {/* Attempts distribution */}
+      {/* Attempts */}
       {gamesPlayed > 0 && (
         <section className="space-y-3">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-            Répartition des essais
+            {t.stats.sectionAttempts}
           </h2>
           <div className="rounded-2xl border border-line bg-surface p-5 space-y-3">
-            <p className="text-xs text-muted mb-1">
-              Nombre d'essais utilisés pour compléter le défi
-            </p>
-            <AttemptRow n={1} count={stats.attemptDist[1]} total={gamesPlayed} />
-            <AttemptRow n={2} count={stats.attemptDist[2]} total={gamesPlayed} />
-            <AttemptRow n={3} count={stats.attemptDist[3]} total={gamesPlayed} />
+            <p className="text-xs text-muted mb-1">{t.stats.attemptsDesc}</p>
+            <AttemptRow n={1} count={s.attemptDist[1]} total={gamesPlayed} />
+            <AttemptRow n={2} count={s.attemptDist[2]} total={gamesPlayed} />
+            <AttemptRow n={3} count={s.attemptDist[3]} total={gamesPlayed} />
           </div>
         </section>
       )}
@@ -167,24 +148,19 @@ export default function Stats() {
       {/* Training */}
       <section className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-          Entraînement
+          {t.stats.sectionTraining}
         </h2>
         <div className="grid grid-cols-2 gap-2">
+          <StatTile label={t.stats.trainingPlayed} value={s.trainingGamesPlayed} />
           <StatTile
-            label="Parties jouées"
-            value={stats.trainingGamesPlayed}
-          />
-          <StatTile
-            label="Score moyen"
-            value={stats.trainingGamesPlayed > 0 ? trainingAvg : "—"}
+            label={t.stats.trainingAvg}
+            value={s.trainingGamesPlayed > 0 ? trainingAvg : "—"}
           />
         </div>
       </section>
 
-      {gamesPlayed === 0 && stats.trainingGamesPlayed === 0 && (
-        <p className="text-center text-muted text-sm py-8">
-          Joue ta première partie pour voir tes stats !
-        </p>
+      {gamesPlayed === 0 && s.trainingGamesPlayed === 0 && (
+        <p className="text-center text-muted text-sm py-8">{t.stats.empty}</p>
       )}
     </main>
   );

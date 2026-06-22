@@ -1,4 +1,5 @@
 import { useTraining } from "../hooks/useTraining";
+import { useT } from "../contexts/LanguageContext";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
@@ -6,6 +7,7 @@ import { SolverResultsList } from "../components/game/SolverResults";
 import { Button } from "../components/ui/Button";
 
 export default function Training() {
+  const t = useT();
   const {
     draw, phase,
     inputWord, setInputWord, isInputValid,
@@ -16,16 +18,13 @@ export default function Training() {
   return (
     <div className="mx-auto max-w-lg">
 
-      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-primary">Entraînement</h1>
-        <p className="mt-1 text-sm text-muted">Tirages aléatoires en boucle. Aucune limite.</p>
+        <h1 className="text-2xl font-bold text-primary">{t.training.title}</h1>
+        <p className="mt-1 text-sm text-muted">{t.training.subtitle}</p>
       </div>
 
-      {/* Draw tiles */}
       <DrawDisplay letters={draw} className="mb-8" />
 
-      {/* Word input */}
       {phase.kind === "playing" && (
         <div className="mb-6">
           <WordInput
@@ -35,18 +34,17 @@ export default function Training() {
             isValid={isInputValid}
             error={
               currentResult?.invalidReason === "not_in_dictionary"
-                ? "Mot non reconnu dans le dictionnaire."
+                ? t.training.notInDict
                 : undefined
             }
           />
         </div>
       )}
 
-      {/* Results */}
       {phase.kind === "results" && currentResult?.score && (
         <div className="mb-6">
           <ScoreCard
-            label="Votre mot"
+            label={t.training.yourWord}
             score={currentResult.score}
             total={currentResult.total}
             bestPossibleScore={bestPossibleScore >= 0 ? bestPossibleScore : undefined}
@@ -55,8 +53,8 @@ export default function Training() {
           <SolverResultsList results={top3} />
 
           <div className="mt-6 flex gap-3">
-            <Button variant="secondary" onClick={retryRound}>Retenter</Button>
-            <Button onClick={nextRound}>Prochain tirage →</Button>
+            <Button variant="secondary" onClick={retryRound}>{t.training.retry}</Button>
+            <Button onClick={nextRound}>{t.training.next}</Button>
           </div>
         </div>
       )}

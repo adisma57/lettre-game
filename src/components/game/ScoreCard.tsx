@@ -1,5 +1,6 @@
 import { ColoredWord } from "./ColoredWord";
 import type { ScoreResult } from "../../engine/types";
+import { useT } from "../../contexts/LanguageContext";
 
 interface ScoreCardProps {
   label?: string;
@@ -18,6 +19,7 @@ export function ScoreCard({
   bestPossibleScore,
   className = "",
 }: ScoreCardProps) {
+  const t = useT();
   const isPerfect =
     bestPossibleScore !== undefined &&
     bestPossibleScore >= 0 &&
@@ -41,7 +43,7 @@ export function ScoreCard({
       {/* Score row */}
       <div className="flex items-center gap-4">
         <div>
-          <p className="text-xs text-muted">Votre score</p>
+          <p className="text-xs text-muted">{t.game.yourScore}</p>
           <p className="font-display text-3xl font-extrabold text-primary leading-none">{total}<span className="ml-1.5 text-sm font-normal text-muted">pts</span></p>
         </div>
 
@@ -49,7 +51,7 @@ export function ScoreCard({
           <>
             <div className="h-8 w-px bg-line" />
             <div>
-              <p className="text-xs text-muted">Meilleur possible</p>
+              <p className="text-xs text-muted">{t.game.bestPossible}</p>
               <p className="font-display text-3xl font-extrabold text-fg/50 leading-none">{bestPossibleScore}<span className="ml-1.5 text-sm font-normal text-muted">pts</span></p>
             </div>
           </>
@@ -57,7 +59,7 @@ export function ScoreCard({
 
         {isPerfect && (
           <span className="ml-auto rounded-full border border-success/30 bg-success/10 px-3 py-1 text-xs font-bold text-success">
-            Score parfait ✓
+            {t.game.perfectBadge}
           </span>
         )}
       </div>

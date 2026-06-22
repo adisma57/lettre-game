@@ -3,9 +3,7 @@ import type { Draw } from "../engine/types";
 import type { RoundResult } from "../engine/RoundService";
 import { evaluateRound } from "../engine/RoundService";
 import { normalizeWord } from "../engine/score";
-import { mainValidator, mainDictionary } from "../engine/mainDictionary";
 import { solveTopN, type SolverResult } from "../engine/solver";
-import { getDailyDraw } from "../engine/draw";
 import {
   loadDailyState,
   saveDailyState,
@@ -14,6 +12,8 @@ import {
 import type { AttemptRecord } from "../services/dailyState";
 import { submitScore } from "../services/api";
 import { recordDailyGame } from "../services/statsService";
+import { useLanguage } from "../contexts/LanguageContext";
+import { useGameResources } from "./useGameResources";
 
 type Phase =
   | { kind: "playing" }
@@ -24,19 +24,22 @@ export type GameState = {
   draw: Draw;
   phase: Phase;
   attempts: AttemptRecord[];
-  bestPossibleScore: number;        // -1 before first attempt
-  bestWord: string | null;          // null before first attempt
-  topWords: SolverResult[];         // top 10 best words, empty before first attempt
+  bestPossibleScore: number;
+  bestWord: string | null;
+  topWords: SolverResult[];
   inputWord: string;
   setInputWord: (w: string) => void;
-  isInputValid: boolean | null;     // null = empty, true = in dict, false = not in dict
+  isInputValid: boolean | null;
   submitWord: () => void;
-  retryRound: () => void;           // attempt_shown → playing
+  retryRound: () => void;
   currentAttemptResult: RoundResult | null;
 };
 
 export function useDailyGame(username: string | null): GameState {
-  const [draw, setDraw]           = useState<Draw>(() => getDailyDraw());
+  const { lang } = useLanguage();
+  const resources = useGameResources();
+
+  const [draw, setDraw]           = useState<Draw>(() => resources.getDailyDraw());
   const [phase, setPhase]         = useState<Phase>({ kind: "playing" });
   const [attempts, setAttempts]   = useState<AttemptRecord[]>([]);
   const [bestPossibleScore, setBestPossibleScore] = useState<number>(-1);
@@ -46,9 +49,14 @@ export function useDailyGame(username: string | null): GameState {
   const [isInputValid, setIsInputValid] = useState<boolean | null>(null);
   const [currentAttemptResult, setCurrentAttemptResult] = useState<RoundResult | null>(null);
 
-  // Restore persisted state on mount + retry pending score submission
+  // Restore state for the current language, or start fresh — runs on mount and lang changes
   useEffect(() => {
-    const saved = loadDailyState();
+    const saved = loadDailyState(lang);
+
+    // Reset transient state on every lang change
+    setInputWord("");
+    setCurrentAttemptResult(null);
+
     if (saved) {
       setDraw(saved.draw);
       setAttempts(saved.attempts);
@@ -60,10 +68,12 @@ export function useDailyGame(username: string | null): GameState {
                                     { kind: "playing"        }
       );
       if (saved.bestPossibleScore >= 0) {
-        setTopWords(solveTopN(saved.draw, mainDictionary, 10));
+        setTopWords(solveTopN(saved.draw, resources.dictionary, 10));
+      } else {
+        setTopWords([]);
       }
 
-      // Retry any attempts not yet confirmed by the backend
+      // Retry pending score submissions
       if (username && saved.attempts.length > 0) {
         const confirmed = new Set(saved.submittedAttempts ?? []);
         const pending = saved.attempts
@@ -84,14 +94,22 @@ export function useDailyGame(username: string | null): GameState {
             ),
           ).then(() => {
             if (newConfirmed.length > confirmed.size) {
-              saveDailyState({ ...saved, submittedAttempts: newConfirmed });
+              saveDailyState({ ...saved, submittedAttempts: newConfirmed }, lang);
             }
           });
         }
       }
+    } else {
+      // Fresh game for this language
+      setDraw(resources.getDailyDraw());
+      setAttempts([]);
+      setBestPossibleScore(-1);
+      setBestWord(null);
+      setTopWords([]);
+      setPhase({ kind: "playing" });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [lang]);
 
   // Debounced input validity check (300 ms)
   useEffect(() => {
@@ -101,26 +119,24 @@ export function useDailyGame(username: string | null): GameState {
     }
     const timer = setTimeout(() => {
       const normalized = normalizeWord(inputWord).trim();
-      setIsInputValid(normalized ? mainValidator(normalized) : null);
+      setIsInputValid(normalized ? resources.validator(normalized) : null);
     }, 300);
     return () => clearTimeout(timer);
-  }, [inputWord]);
+  }, [inputWord, resources]);
 
   const submitWord = useCallback(() => {
-    const result = evaluateRound(draw, inputWord, mainValidator);
+    const result = evaluateRound(draw, inputWord, resources.validator);
 
-    // Invalid word → show error message, do NOT consume an attempt
     if (!result.isValid) {
       setCurrentAttemptResult(result);
       return;
     }
 
-    // Compute best possible score lazily on first valid submit (~50 ms)
     let newBestScore = bestPossibleScore;
     let newBestWord  = bestWord;
     let newTopWords  = topWords;
     if (bestPossibleScore === -1) {
-      const top = solveTopN(draw, mainDictionary, 10);
+      const top = solveTopN(draw, resources.dictionary, 10);
       newTopWords  = top;
       newBestScore = top[0]?.score.total ?? 0;
       newBestWord  = top[0]?.word ?? null;
@@ -157,6 +173,7 @@ export function useDailyGame(username: string | null): GameState {
         perfect:      bestPlayerScore >= newBestScore,
       });
     }
+
     const attemptNum = newAttempts.length;
     const stateToSave = {
       _v: 1 as const,
@@ -166,9 +183,9 @@ export function useDailyGame(username: string | null): GameState {
       bestPossibleScore: newBestScore,
       bestWord:          newBestWord,
       completed:         nextPhase.kind === "completed",
-      submittedAttempts: (loadDailyState()?.submittedAttempts ?? []),
+      submittedAttempts: (loadDailyState(lang)?.submittedAttempts ?? []),
     };
-    saveDailyState(stateToSave);
+    saveDailyState(stateToSave, lang);
 
     if (username) {
       submitScore({
@@ -179,15 +196,15 @@ export function useDailyGame(username: string | null): GameState {
         best_possible: newBestScore,
       }).then(ok => {
         if (ok) {
-          const latest = loadDailyState();
+          const latest = loadDailyState(lang);
           const already = latest?.submittedAttempts ?? [];
           if (!already.includes(attemptNum)) {
-            saveDailyState({ ...(latest ?? stateToSave), submittedAttempts: [...already, attemptNum] });
+            saveDailyState({ ...(latest ?? stateToSave), submittedAttempts: [...already, attemptNum] }, lang);
           }
         }
       });
     }
-  }, [draw, inputWord, attempts, bestPossibleScore, bestWord, topWords, username]);
+  }, [draw, inputWord, attempts, bestPossibleScore, bestWord, topWords, username, resources, lang]);
 
   const retryRound = useCallback(() => {
     setInputWord("");
