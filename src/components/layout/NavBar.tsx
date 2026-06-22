@@ -14,6 +14,7 @@ export default function NavBar() {
     { to: "/daily",    label: t.nav.daily    },
     { to: "/training", label: t.nav.training },
     { to: "/solver",   label: t.nav.solver   },
+    { to: "/archive",  label: t.nav.archive  },
     { to: "/stats",    label: t.nav.stats    },
     { to: "/rules",    label: t.nav.rules    },
   ] as const;

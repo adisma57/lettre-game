@@ -6,6 +6,7 @@ export type Translations = {
     daily: string;
     training: string;
     solver: string;
+    archive: string;
     stats: string;
     rules: string;
     menuOpen: string;
@@ -25,9 +26,22 @@ export type Translations = {
     comeBack: string;
     bestWords: string;
     notInDict: string;
+    attempt: (n: number) => string;
     retry: (remaining: number) => string;
     showMore: (n: number) => string;
     showLess: string;
+    dateLocale: string;
+  };
+  archive: {
+    title: string;
+    subtitle: string;
+    freeBadge: string;
+    iapBadge: string;
+    playedBadge: string;
+    playCta: string;
+    replayCta: string;
+    backLink: string;
+    iapDesc: string;
     dateLocale: string;
   };
   training: {
@@ -100,6 +114,7 @@ const fr: Translations = {
     daily: "Défi du jour",
     training: "Entraînement",
     solver: "Solveur",
+    archive: "Archives",
     stats: "Mes stats",
     rules: "Règles",
     menuOpen: "Ouvrir le menu",
@@ -131,9 +146,22 @@ const fr: Translations = {
     comeBack: "Revenez demain —",
     bestWords: "Meilleurs mots possibles",
     notInDict: "Mot non reconnu dans le dictionnaire.",
+    attempt: (n) => `— Essai ${n} —`,
     retry: (n) => `Réessayer (${n} essai${n > 1 ? "s" : ""} restant${n > 1 ? "s" : ""})`,
     showMore: (n) => `▼ Voir les ${n} suivant${n > 1 ? "s" : ""}`,
     showLess: "▲ Masquer",
+    dateLocale: "fr-FR",
+  },
+  archive: {
+    title: "Défis passés",
+    subtitle: "Rejoue les défis des jours précédents.",
+    freeBadge: "Gratuit",
+    iapBadge: "Achat requis",
+    playedBadge: "Joué",
+    playCta: "Jouer",
+    replayCta: "Rejouer",
+    backLink: "← Archives",
+    iapDesc: "Les défis de plus de 3 jours seront disponibles prochainement en achat intégré.",
     dateLocale: "fr-FR",
   },
   training: {
@@ -206,6 +234,7 @@ const en: Translations = {
     daily: "Daily challenge",
     training: "Training",
     solver: "Solver",
+    archive: "Archives",
     stats: "My stats",
     rules: "Rules",
     menuOpen: "Open menu",
@@ -237,9 +266,22 @@ const en: Translations = {
     comeBack: "Come back tomorrow —",
     bestWords: "Best possible words",
     notInDict: "Word not found in the dictionary.",
+    attempt: (n) => `— Attempt ${n} —`,
     retry: (n) => `Try again (${n} attempt${n > 1 ? "s" : ""} left)`,
     showMore: (n) => `▼ Show ${n} more`,
     showLess: "▲ Hide",
+    dateLocale: "en-US",
+  },
+  archive: {
+    title: "Past challenges",
+    subtitle: "Replay previous daily challenges.",
+    freeBadge: "Free",
+    iapBadge: "Purchase required",
+    playedBadge: "Played",
+    playCta: "Play",
+    replayCta: "Replay",
+    backLink: "← Archives",
+    iapDesc: "Challenges older than 3 days will be available soon as an in-app purchase.",
     dateLocale: "en-US",
   },
   training: {

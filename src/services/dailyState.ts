@@ -23,6 +23,10 @@ function storageKey(lang: Lang): string {
   return lang === "en" ? "quadra:daily:en" : "quadra:daily";
 }
 
+function archiveKey(lang: Lang, dateStr: string): string {
+  return `quadra:archive:${lang}:${dateStr}`;
+}
+
 /** Returns today's UTC date as "YYYY-MM-DD". */
 export function getTodayKey(): string {
   const now = new Date();
@@ -57,6 +61,14 @@ export function saveDailyState(state: DailyState, lang: Lang = "fr"): void {
   }
 }
 
+export function clearDailyState(lang: Lang): void {
+  try {
+    localStorage.removeItem(storageKey(lang));
+  } catch {
+    console.error("Failed to clear daily state from localStorage");
+  }
+}
+
 export function createFreshState(date: string, draw: Draw): DailyState {
   return {
     _v: 1,
@@ -67,4 +79,27 @@ export function createFreshState(date: string, draw: Draw): DailyState {
     bestWord: null,
     completed: false,
   };
+}
+
+// ─── Archive state ────────────────────────────────────────────────────────────
+
+export function loadArchiveState(lang: Lang, dateStr: string): DailyState | null {
+  try {
+    const raw = localStorage.getItem(archiveKey(lang, dateStr));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DailyState>;
+    if (parsed._v !== 1) return null;
+    if (parsed.date !== dateStr) return null;
+    return parsed as DailyState;
+  } catch {
+    return null;
+  }
+}
+
+export function saveArchiveState(state: DailyState, lang: Lang): void {
+  try {
+    localStorage.setItem(archiveKey(lang, state.date), JSON.stringify(state));
+  } catch {
+    console.error("Failed to save archive state to localStorage");
+  }
 }

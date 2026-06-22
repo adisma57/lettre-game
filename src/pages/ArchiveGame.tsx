@@ -1,53 +1,36 @@
-import { useState } from "react";
-import { useDailyGame } from "../hooks/useDailyGame";
-import { useAuth } from "../hooks/useAuth";
-import { useLanguage, useT } from "../contexts/LanguageContext";
+import { useState, useMemo } from "react";
+import { useParams, Link, Navigate } from "react-router-dom";
+import { useArchiveGame } from "../hooks/useArchiveGame";
+import { useT } from "../contexts/LanguageContext";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import type { SolverResult } from "../engine/solver";
-import { getStats } from "../services/statsService";
 
-function tomorrow(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+const FREE_DAYS = 3;
+
+function isValidDate(dateStr: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
 }
 
-function PostGameStats() {
-  const t = useT();
-  const { lang } = useLanguage();
-  const s = getStats(lang);
-  const gamesPlayed = s.dailyGames.length;
+function getPastDate(daysAgo: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
 
-  return (
-    <div className="mt-5 rounded-xl border border-line bg-elevated p-4">
-      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— {t.stats.title} —</p>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="text-center">
-          <p className="text-xl font-bold font-mono text-primary">{s.averagePerformance}%</p>
-          <p className="text-xs text-muted mt-0.5">{t.stats.avgPerf}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xl font-bold font-mono text-fg">
-            {s.currentStreak > 0 ? `${s.currentStreak} 🔥` : s.currentStreak}
-          </p>
-          <p className="text-xs text-muted mt-0.5">{t.stats.currentStreak}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xl font-bold font-mono text-fg">{gamesPlayed}</p>
-          <p className="text-xs text-muted mt-0.5">{t.stats.gamesPlayed}</p>
-        </div>
-      </div>
-    </div>
-  );
+function isAccessible(dateStr: string): boolean {
+  for (let i = 1; i <= FREE_DAYS; i++) {
+    if (getPastDate(i) === dateStr) return true;
+  }
+  return false;
 }
 
 function TopWordsList({ words }: { words: SolverResult[] }) {
   const t = useT();
   const [showMore, setShowMore] = useState(false);
-
   const top3  = words.slice(0, 3);
   const next7 = words.slice(3, 10);
 
@@ -69,7 +52,6 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
       <ol className="space-y-2">
         {top3.map((r, i) => <WordRow key={r.word} r={r} rank={i + 1} />)}
       </ol>
-
       {next7.length > 0 && (
         <>
           {showMore && (
@@ -89,28 +71,57 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
   );
 }
 
-export default function DailyGame() {
+export default function ArchiveGame() {
   const t = useT();
-  const { auth } = useAuth();
-  const username = auth.status === "authenticated" ? auth.username : null;
+  const { date: dateStr = "" } = useParams<{ date: string }>();
 
-  const dateFmt = new Intl.DateTimeFormat(t.daily.dateLocale, {
-    day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
-  });
+  const dateFmt = useMemo(
+    () =>
+      new Intl.DateTimeFormat(t.archive.dateLocale, {
+        weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+      }),
+    [t.archive.dateLocale]
+  );
+
+  // Guard: invalid date format or future date or not in free window
+  if (!isValidDate(dateStr) || !isAccessible(dateStr)) {
+    return <Navigate to="/archive" replace />;
+  }
+
+  return <ArchiveGameInner dateStr={dateStr} dateFmt={dateFmt} />;
+}
+
+function ArchiveGameInner({
+  dateStr,
+  dateFmt,
+}: {
+  dateStr: string;
+  dateFmt: Intl.DateTimeFormat;
+}) {
+  const t = useT();
 
   const {
     draw, phase, attempts,
     bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, currentAttemptResult,
-  } = useDailyGame(username);
+  } = useArchiveGame(dateStr);
 
   return (
     <div className="mx-auto max-w-lg">
-
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-primary">{t.daily.title}</h1>
-        <span className="text-sm text-muted">{dateFmt.format(new Date())}</span>
+      <div className="mb-8">
+        <Link
+          to="/archive"
+          className="mb-3 inline-block text-sm text-muted hover:text-fg transition-colors"
+        >
+          {t.archive.backLink}
+        </Link>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-primary">{t.archive.title}</h1>
+          <span className="text-sm text-muted capitalize">
+            {dateFmt.format(new Date(dateStr + "T00:00:00Z"))}
+          </span>
+        </div>
       </div>
 
       <DrawDisplay letters={draw} className="mb-8" />
@@ -163,11 +174,12 @@ export default function DailyGame() {
             </p>
           )}
 
-          <p className="text-sm text-muted">
-            {t.daily.comeBack} {dateFmt.format(tomorrow())}
-          </p>
-
-          <PostGameStats />
+          <Link
+            to="/archive"
+            className="inline-block text-sm text-muted hover:text-fg transition-colors underline underline-offset-2"
+          >
+            {t.archive.backLink}
+          </Link>
 
           {topWords.length > 0 && <TopWordsList words={topWords} />}
         </Card>
