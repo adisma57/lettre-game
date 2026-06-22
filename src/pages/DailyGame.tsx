@@ -8,10 +8,39 @@ import { ScoreCard } from "../components/game/ScoreCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import type { SolverResult } from "../engine/solver";
+import { getStats } from "../services/statsService";
 
 function tomorrow(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+}
+
+function PostGameStats() {
+  const t = useT();
+  const s = getStats();
+  const gamesPlayed = s.dailyGames.length;
+
+  return (
+    <div className="mt-5 rounded-xl border border-line bg-elevated p-4">
+      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— {t.stats.title} —</p>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="text-center">
+          <p className="text-xl font-bold font-mono text-primary">{s.averagePerformance}%</p>
+          <p className="text-xs text-muted mt-0.5">{t.stats.avgPerf}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xl font-bold font-mono text-fg">
+            {s.currentStreak > 0 ? `${s.currentStreak} 🔥` : s.currentStreak}
+          </p>
+          <p className="text-xs text-muted mt-0.5">{t.stats.currentStreak}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xl font-bold font-mono text-fg">{gamesPlayed}</p>
+          <p className="text-xs text-muted mt-0.5">{t.stats.gamesPlayed}</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TopWordsList({ words }: { words: SolverResult[] }) {
@@ -136,6 +165,8 @@ export default function DailyGame() {
           <p className="text-sm text-muted">
             {t.daily.comeBack} {dateFmt.format(tomorrow())}
           </p>
+
+          <PostGameStats />
 
           {topWords.length > 0 && <TopWordsList words={topWords} />}
         </Card>

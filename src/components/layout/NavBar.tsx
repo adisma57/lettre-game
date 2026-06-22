@@ -19,7 +19,10 @@ export default function NavBar() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-canvas/90 backdrop-blur-md">
+    <header
+      className="sticky top-0 z-50 border-b border-line bg-canvas/90 backdrop-blur-md"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
       <nav className="mx-auto flex h-[60px] max-w-4xl items-center justify-between px-4">
         {/* Logo */}
         <Link
