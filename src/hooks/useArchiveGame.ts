@@ -9,6 +9,7 @@ import {
   saveArchiveState,
 } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
+import { recordDailyGame } from "../services/statsService";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useGameResources } from "./useGameResources";
 
@@ -132,6 +133,17 @@ export function useArchiveGame(dateStr: string): ArchiveGameState {
         ? { kind: "completed"     }
         : { kind: "attempt_shown" };
     setPhase(nextPhase);
+
+    if (nextPhase.kind === "completed") {
+      const bestPlayerScore = Math.max(...newAttempts.map((a) => a.total));
+      recordDailyGame({
+        date:         dateStr,
+        score:        bestPlayerScore,
+        bestPossible: newBestScore,
+        attempts:     newAttempts.length,
+        perfect:      bestPlayerScore >= newBestScore,
+      }, lang);
+    }
 
     saveArchiveState({
       _v: 1,
