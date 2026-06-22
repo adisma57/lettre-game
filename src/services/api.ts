@@ -13,28 +13,33 @@ export type CreateUserResult =
   | { ok: false; error: string; status: number };
 
 export async function createUser(username: string): Promise<CreateUserResult> {
-  const res = await fetch(`${BASE}/api/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username }),
-  });
-  const body: unknown = await res.json().catch(() => null);
-  if (res.ok) {
-    const username =
-      body !== null &&
-      typeof body === "object" &&
-      "username" in body &&
-      typeof (body as Record<string, unknown>).username === "string"
-        ? (body as { username: string }).username
-        : null;
-    if (!username) return { ok: false, error: "Réponse serveur invalide.", status: 200 };
+  try {
+    const res = await fetch(`${BASE}/api/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+    const body: unknown = await res.json().catch(() => null);
+    if (res.ok) {
+      const returned =
+        body !== null &&
+        typeof body === "object" &&
+        "username" in body &&
+        typeof (body as Record<string, unknown>).username === "string"
+          ? (body as { username: string }).username
+          : null;
+      if (!returned) return { ok: false, error: "Réponse serveur invalide.", status: 200 };
+      return { ok: true, username: returned };
+    }
+    return {
+      ok: false,
+      error: isApiError(body) ? body.error : `Erreur serveur (${res.status}).`,
+      status: res.status,
+    };
+  } catch {
+    // Hors-ligne ou serveur indisponible → pseudo local uniquement
     return { ok: true, username };
   }
-  return {
-    ok: false,
-    error: isApiError(body) ? body.error : `Erreur serveur (${res.status}).`,
-    status: res.status,
-  };
 }
 
 // ─── POST /api/scores ────────────────────────────────────────────────────────

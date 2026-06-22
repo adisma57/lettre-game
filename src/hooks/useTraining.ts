@@ -5,6 +5,7 @@ import { evaluateRound, createDraw } from "../engine/RoundService";
 import { normalizeWord } from "../engine/score";
 import { mainValidator, mainDictionary } from "../engine/mainDictionary";
 import { solveTopN, type SolverResult } from "../engine/solver";
+import { recordTrainingGame } from "../services/statsService";
 
 type Phase = { kind: "playing" } | { kind: "results" };
 
@@ -57,6 +58,7 @@ export function useTraining(): TrainingState {
     setTop3(best3);
     setCurrentResult(result);
     setPhase({ kind: "results" });
+    recordTrainingGame(result.total);
   }, [draw, inputWord]);
 
   const retryRound = useCallback(() => {

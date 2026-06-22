@@ -3,11 +3,11 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { LogoMark } from "../ui/LogoMark";
 
 const NAV_LINKS = [
-  { to: "/daily",       label: "Défi du jour"  },
-  { to: "/training",    label: "Entraînement"  },
-  { to: "/solver",      label: "Solveur"       },
-  { to: "/leaderboard", label: "Classement"    },
-  { to: "/rules",       label: "Règles"        },
+  { to: "/daily",    label: "Défi du jour" },
+  { to: "/training", label: "Entraînement" },
+  { to: "/solver",   label: "Solveur"      },
+  { to: "/stats",    label: "Mes stats"    },
+  { to: "/rules",    label: "Règles"       },
 ] as const;
 
 export default function NavBar() {

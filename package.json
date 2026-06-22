@@ -13,9 +13,14 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "android": "npm run build && npx cap sync && npx cap open android",
+    "cap:sync": "npx cap sync",
+    "cap:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.1",
+    "@capacitor/core": "^7.4.1",
     "@hono/node-server": "^1.19.12",
     "@neondatabase/serverless": "^1.0.2",
     "@tailwindcss/vite": "^4.2.2",
@@ -26,6 +31,7 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.4.1",
     "@eslint/js": "^9.39.1",
     "dictionary-fr": "^3.0.0",
     "@types/node": "^24.10.1",

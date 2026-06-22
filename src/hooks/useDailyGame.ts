@@ -13,6 +13,7 @@ import {
 } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
 import { submitScore } from "../services/api";
+import { recordDailyGame } from "../services/statsService";
 
 type Phase =
   | { kind: "playing" }
@@ -145,6 +146,17 @@ export function useDailyGame(username: string | null): GameState {
     setPhase(nextPhase);
 
     const todayKey = getTodayKey();
+
+    if (nextPhase.kind === "completed") {
+      const bestPlayerScore = Math.max(...newAttempts.map((a) => a.total));
+      recordDailyGame({
+        date:         todayKey,
+        score:        bestPlayerScore,
+        bestPossible: newBestScore,
+        attempts:     newAttempts.length,
+        perfect:      bestPlayerScore >= newBestScore,
+      });
+    }
     const attemptNum = newAttempts.length;
     const stateToSave = {
       _v: 1 as const,

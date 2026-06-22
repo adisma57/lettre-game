@@ -6,6 +6,7 @@ import Training from "./pages/Training";
 import Solver from "./pages/Solver";
 import Rules from "./pages/Rules";
 import Leaderboard from "./pages/Leaderboard";
+import Stats from "./pages/Stats";
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       { path: "training",       element: <Training />    },
       { path: "solver",         element: <Solver />      },
       { path: "rules",          element: <Rules />       },
+      { path: "stats",          element: <Stats />       },
       { path: "leaderboard",    element: <Leaderboard /> },
     ],
   },
