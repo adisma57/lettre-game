@@ -28,7 +28,10 @@ export async function createUser(username: string): Promise<CreateUserResult> {
         typeof (body as Record<string, unknown>).username === "string"
           ? (body as { username: string }).username
           : null;
-      if (!returned) return { ok: false, error: "Réponse serveur invalide.", status: 200 };
+      if (!returned) {
+        // Serveur absent ou WebView Capacitor → mode local
+        return { ok: true, username };
+      }
       return { ok: true, username: returned };
     }
     return {
