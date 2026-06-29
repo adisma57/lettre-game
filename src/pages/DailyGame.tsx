@@ -6,6 +6,7 @@ import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { scoreWord } from "../engine/score";
 import type { SolverResult } from "../engine/solver";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -112,17 +113,22 @@ export default function DailyGame() {
       )}
 
       {/* Attempt history */}
-      {attempts.map((attempt, idx) => (
-        <ScoreCard
-          key={idx}
-          label={`— Essai ${idx + 1} —`}
-          score={idx === attempts.length - 1 ? currentAttemptResult?.score ?? null : null}
-          plainWord={attempt.normalizedWord}
-          total={attempt.total}
-          bestPossibleScore={bestPossibleScore >= 0 ? bestPossibleScore : undefined}
-          className="mb-5"
-        />
-      ))}
+      {attempts.map((attempt, idx) => {
+        const isLast = idx === attempts.length - 1;
+        const score = isLast
+          ? (currentAttemptResult?.score ?? scoreWord(draw, attempt.normalizedWord))
+          : scoreWord(draw, attempt.normalizedWord);
+        return (
+          <ScoreCard
+            key={idx}
+            label={`— Essai ${idx + 1} —`}
+            score={score}
+            total={attempt.total}
+            bestPossibleScore={bestPossibleScore >= 0 ? bestPossibleScore : undefined}
+            className="mb-5"
+          />
+        );
+      })}
 
       {/* Retry button */}
       {phase.kind === "attempt_shown" && attempts.length < 3 && (
