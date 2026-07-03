@@ -14,6 +14,7 @@ export type DailyState = {
   bestPossibleScore: number;    // -1 until first submit
   bestWord: string | null;      // null until first submit
   completed: boolean;
+  revealed?: boolean;           // true if player clicked "Voir les réponses" mid-game
   submittedAttempts?: number[]; // attempt_num values confirmed by the backend
 };
 
