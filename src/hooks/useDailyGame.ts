@@ -17,7 +17,8 @@ import { submitScore } from "../services/api";
 type Phase =
   | { kind: "playing" }
   | { kind: "attempt_shown" }
-  | { kind: "completed" };
+  | { kind: "completed" }
+  | { kind: "revealed" };
 
 export type GameState = {
   draw: Draw;
@@ -31,6 +32,7 @@ export type GameState = {
   isInputValid: boolean | null;     // null = empty, true = in dict, false = not in dict
   submitWord: () => void;
   retryRound: () => void;           // attempt_shown → playing
+  revealAnswers: () => void;        // playing | attempt_shown → revealed
   currentAttemptResult: RoundResult | null;
 };
 
@@ -54,6 +56,7 @@ export function useDailyGame(username: string | null): GameState {
       setBestPossibleScore(saved.bestPossibleScore);
       setBestWord(saved.bestWord);
       setPhase(
+        saved.revealed            ? { kind: "revealed"      } :
         saved.completed           ? { kind: "completed"     } :
         saved.attempts.length > 0 ? { kind: "attempt_shown" } :
                                     { kind: "playing"        }
@@ -184,9 +187,42 @@ export function useDailyGame(username: string | null): GameState {
     setPhase({ kind: "playing" });
   }, []);
 
+  const revealAnswers = useCallback(() => {
+    let newBestScore = bestPossibleScore;
+    let newBestWord  = bestWord;
+    let newTopWords  = topWords;
+    if (bestPossibleScore === -1) {
+      const top = solveTopN(draw, mainDictionary, 10);
+      newTopWords  = top;
+      newBestScore = top[0]?.score.total ?? 0;
+      newBestWord  = top[0]?.word ?? null;
+      setTopWords(newTopWords);
+      setBestPossibleScore(newBestScore);
+      setBestWord(newBestWord);
+    }
+    setPhase({ kind: "revealed" });
+    const existing = loadDailyState();
+    const base = existing ?? {
+      _v: 1 as const,
+      date: getTodayKey(),
+      draw,
+      attempts,
+      bestPossibleScore: newBestScore,
+      bestWord: newBestWord,
+      completed: true,
+    };
+    saveDailyState({
+      ...base,
+      bestPossibleScore: newBestScore,
+      bestWord: newBestWord,
+      completed: true,
+      revealed: true,
+    });
+  }, [draw, attempts, bestPossibleScore, bestWord, topWords]);
+
   return {
     draw, phase, attempts, bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
-    submitWord, retryRound, currentAttemptResult,
+    submitWord, retryRound, revealAnswers, currentAttemptResult,
   };
 }

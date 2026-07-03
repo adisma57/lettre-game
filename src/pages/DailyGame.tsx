@@ -80,7 +80,7 @@ export default function DailyGame() {
     draw, phase, attempts,
     bestPossibleScore, bestWord, topWords,
     inputWord, setInputWord, isInputValid,
-    submitWord, retryRound, currentAttemptResult,
+    submitWord, retryRound, revealAnswers, currentAttemptResult,
   } = useDailyGame(username);
 
   return (
@@ -130,11 +130,18 @@ export default function DailyGame() {
         );
       })}
 
-      {/* Retry button */}
-      {phase.kind === "attempt_shown" && attempts.length < 3 && (
-        <Button variant="secondary" onClick={retryRound}>
-          Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
-        </Button>
+      {/* Retry + reveal buttons */}
+      {(phase.kind === "playing" || phase.kind === "attempt_shown") && (
+        <div className="flex flex-wrap gap-3">
+          {phase.kind === "attempt_shown" && attempts.length < 3 && (
+            <Button variant="secondary" onClick={retryRound}>
+              Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
+            </Button>
+          )}
+          <Button variant="ghost" onClick={revealAnswers}>
+            Voir les réponses
+          </Button>
+        </div>
       )}
 
       {/* Completed summary */}
@@ -142,6 +149,29 @@ export default function DailyGame() {
         <Card className="mt-6">
           <p className="mb-4 text-xs uppercase tracking-wider text-muted">
             — Partie terminée —
+          </p>
+
+          {bestWord !== null && bestPossibleScore >= 0 && (
+            <p className="mb-3 text-fg">
+              Meilleur mot :{" "}
+              <span className="font-bold text-primary">{bestWord}</span>{" "}
+              <span className="text-muted">({bestPossibleScore} pts)</span>
+            </p>
+          )}
+
+          <p className="text-sm text-muted">
+            Revenez demain — {formatUTC(tomorrow())}
+          </p>
+
+          {topWords.length > 0 && <TopWordsList words={topWords} />}
+        </Card>
+      )}
+
+      {/* Revealed summary */}
+      {phase.kind === "revealed" && (
+        <Card className="mt-6">
+          <p className="mb-4 text-xs uppercase tracking-wider text-muted">
+            — Réponses dévoilées —
           </p>
 
           {bestWord !== null && bestPossibleScore >= 0 && (
