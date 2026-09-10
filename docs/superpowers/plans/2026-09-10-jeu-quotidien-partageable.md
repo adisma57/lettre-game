@@ -19,12 +19,13 @@
 | Fichier | Responsabilité |
 |---|---|
 | `src/config.ts` | `SITE_URL`, `EPOCH` — les deux seules constantes de déploiement |
-| `src/engine/dayKey.ts` | Clé de jour Europe/Paris, `daysBetween`, `puzzleNumber` |
-| `src/engine/dayKey.test.ts` | Tests de bascule, heure d'été, arithmétique de dates |
+| `src/engine/dayKey.ts` | Clé de jour Europe/Paris, `isDayKey`, `daysBetween`, `puzzleNumber` |
+| `src/engine/dayKey.test.ts` | Tests de bascule, heure d'été, arithmétique de dates, validation |
 | `src/services/deviceId.ts` | UUID anonyme, avec repli mémoire si `localStorage` échoue |
 | `src/services/deviceId.test.ts` | Tests (jsdom) |
 | `src/services/stats.ts` | `applyResult` **pure**, plus `loadStats` / `saveStats` |
-| `src/services/stats.test.ts` | Tests de série, joker, distribution |
+| `src/services/stats.test.ts` | Tests de série, joker, distribution (node, pur) |
+| `src/services/stats.storage.test.ts` | Tests de lecture/écriture et d'assainissement (jsdom) |
 | `src/services/share.ts` | `buildShareText` **pure** |
 | `src/services/share.test.ts` | Tests de format |
 | `src/services/pending.ts` | File des essais non transmis (`quadra:pending`) |
@@ -475,7 +476,7 @@ Expected: FAIL — `Failed to resolve import "./stats"`.
 - [ ] **Step 3: Écrire l'implémentation**
 
 ```ts
-import { daysBetween } from "../engine/dayKey";
+import { daysBetween, isDayKey } from "../engine/dayKey";
 
 export const STATS_STORAGE_KEY = "quadra:stats";
 
@@ -580,7 +581,15 @@ export function loadStats(): Stats {
     if (!raw) return createEmptyStats();
     const parsed = JSON.parse(raw) as Partial<Stats>;
     if (parsed._v !== 1) return createEmptyStats();
-    return { ...createEmptyStats(), ...parsed } as Stats;
+    const merged = { ...createEmptyStats(), ...parsed } as Stats;
+
+    // localStorage est éditable par le joueur et peut être corrompu.
+    // daysBetween lève sur une clé malformée : on assainit à la frontière
+    // plutôt que de laisser une exception remonter jusqu'à l'écran de jeu.
+    if (!isDayKey(merged.lastPlayedDate)) merged.lastPlayedDate = null;
+    if (!isDayKey(merged.jokerUsedOn)) merged.jokerUsedOn = null;
+
+    return merged;
   } catch {
     return createEmptyStats();
   }
@@ -602,10 +611,71 @@ export function saveStats(stats: Stats): boolean {
 Run: `npx vitest run src/services/stats.test.ts`
 Expected: PASS — 12 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Tester l'assainissement du stockage**
+
+`applyResult` est pure et se teste en environnement `node` ; `loadStats` touche
+`localStorage` et exige jsdom. D'où un second fichier, `src/services/stats.storage.test.ts` :
+
+```ts
+// @vitest-environment jsdom
+import { describe, it, expect, beforeEach } from "vitest";
+import { loadStats, saveStats, createEmptyStats, STATS_STORAGE_KEY } from "./stats";
+
+describe("loadStats", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("renvoie des stats vides si rien n'est stocké", () => {
+    expect(loadStats()).toEqual(createEmptyStats());
+  });
+
+  it("renvoie des stats vides sur un JSON illisible", () => {
+    localStorage.setItem(STATS_STORAGE_KEY, "{pas du json");
+    expect(loadStats()).toEqual(createEmptyStats());
+  });
+
+  it("renvoie des stats vides si la version de schéma diffère", () => {
+    localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify({ _v: 99, gamesPlayed: 7 }));
+    expect(loadStats().gamesPlayed).toBe(0);
+  });
+
+  it("annule une date de dernière partie corrompue au lieu de la propager", () => {
+    localStorage.setItem(
+      STATS_STORAGE_KEY,
+      JSON.stringify({ ...createEmptyStats(), lastPlayedDate: "pas-une-date", currentStreak: 5 }),
+    );
+    const stats = loadStats();
+    expect(stats.lastPlayedDate).toBeNull();
+    expect(stats.currentStreak).toBe(5);   // le reste des stats survit
+  });
+
+  it("annule un joker corrompu", () => {
+    localStorage.setItem(
+      STATS_STORAGE_KEY,
+      JSON.stringify({ ...createEmptyStats(), jokerUsedOn: "2026-02-30" }),
+    );
+    expect(loadStats().jokerUsedOn).toBeNull();
+  });
+
+  it("aller-retour d'écriture puis lecture", () => {
+    const stats = { ...createEmptyStats(), gamesPlayed: 3, lastPlayedDate: "2026-09-10" };
+    expect(saveStats(stats)).toBe(true);
+    expect(loadStats()).toEqual(stats);
+  });
+});
+```
+
+Run: `npx vitest run src/services/stats.storage.test.ts`
+Expected: PASS — 6 tests.
+
+Ces tests sont le garde-fou de la décision prise en revue : `daysBetween` **lève**
+sur une clé malformée, donc `loadStats` doit filtrer avant, sinon une valeur
+corrompue dans `localStorage` ferait planter l'écran de jeu au lieu de
+simplement repartir d'une série à zéro.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/services/stats.ts src/services/stats.test.ts
+git add src/services/stats.ts src/services/stats.test.ts src/services/stats.storage.test.ts
 git commit -m "feat(services): statistiques locales et règle de série avec joker"
 ```
 
@@ -1965,8 +2035,12 @@ l'initialisation de `draw`, `submitWord` et `nextRound` par :
   const [pendingTop3, setPendingTop3] = useState<SolverResult[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pas de setLoading(true) ici : loadRound est appelé depuis un useEffect,
+  // et un setState synchrone dans un effet déclenche la règle ESLint
+  // react-hooks/set-state-in-effect — celle-là même qui fait échouer le lint
+  // sur la version actuelle de ce fichier. L'état initial vaut déjà true,
+  // et nextRound le repasse à true depuis un gestionnaire d'événement.
   const loadRound = useCallback(async () => {
-    setLoading(true);
     const round = await fetchTrainingRound();
     if (round) {
       setDraw(round.draw);
@@ -1996,6 +2070,7 @@ l'initialisation de `draw`, `submitWord` et `nextRound` par :
     setBestPossibleScore(-1);
     setTop3([]);
     setPhase({ kind: "playing" });
+    setLoading(true);          // gestionnaire d'événement : autorisé
     void loadRound();
   }, [loadRound]);
 ```
@@ -2085,8 +2160,15 @@ export default function Layout() {
 
 - [ ] **Step 4: Vérifier la compilation et le lint**
 
-Run: `npx tsc -b --noEmit && npm run lint`
+Run: `npx tsc -b --noEmit`
 Expected: aucune erreur.
+
+Run: `npm run lint`
+Expected: **exactement 1 erreur restante**, `react-refresh/only-export-components`
+dans `src/components/game/ColoredWord.tsx`. Elle préexiste à ce chantier et est
+soldée en Tâche C5. Les deux autres erreurs préexistantes disparaissent ici avec
+la suppression de `NavBar.tsx` et `Leaderboard.tsx`. Si le lint remonte autre
+chose, c'est une régression introduite par cette tâche : la corriger.
 
 - [ ] **Step 5: Commit**
 
@@ -2102,9 +2184,41 @@ git commit -m "refactor: suppression du pseudo, du classement et du solveur publ
 **Files:**
 - Create: `src/components/ui/Modal.tsx`
 - Create: `src/components/modals/RulesModal.tsx`
+- Create: `src/components/game/letterRoles.ts`
+- Modify: `src/components/game/ColoredWord.tsx`
 - Delete: `src/pages/Rules.tsx`
 
-- [ ] **Step 1: Créer la coquille de modale**
+- [ ] **Step 1: Extraire le mapping des rôles de lettres**
+
+`ColoredWord.tsx` exporte aujourd'hui `ROLE_CLASS_BY_STRING` à côté de son
+composant, pour alimenter la légende des règles. C'est la cause de la 4e erreur
+de lint préexistante du dépôt (`react-refresh/only-export-components`, une
+constante exportée depuis un fichier de composant casse le rafraîchissement à
+chaud). Le sortir dans son propre module corrige l'erreur et clarifie la
+frontière : le mapping rôle → classe est une donnée partagée, pas un composant.
+
+Créer `src/components/game/letterRoles.ts` :
+
+```ts
+export type LetterRole = "unused" | "insert" | "unordered" | "ordered";
+
+/** Classe Tailwind associée à chaque rôle. Partagé par ColoredWord et la légende des règles. */
+export const ROLE_CLASS: Record<LetterRole, string> = {
+  ordered:   "text-success",
+  unordered: "text-info",
+  insert:    "text-error",
+  unused:    "text-muted",
+};
+```
+
+Dans `ColoredWord.tsx` : importer `LetterRole` et `ROLE_CLASS` depuis ce module,
+supprimer leurs définitions locales ainsi que le ré-export
+`ROLE_CLASS_BY_STRING`, et re-pointer son unique consommateur (la légende des
+règles, qui part dans `RulesModal` à l'étape suivante) sur `ROLE_CLASS`.
+
+Vérifier : `npx eslint src/components/game/ColoredWord.tsx` ne renvoie plus d'erreur.
+
+- [ ] **Step 2: Créer la coquille de modale**
 
 ```tsx
 import { useEffect, type ReactNode } from "react";
@@ -2153,7 +2267,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
 }
 ```
 
-- [ ] **Step 2: Créer `RulesModal.tsx`**
+- [ ] **Step 3: Créer `RulesModal.tsx`**
 
 Déplacer le corps de `src/pages/Rules.tsx` — le rendu typé de `rules.json` et
 ses sous-composants — dans `src/components/modals/RulesModal.tsx`, en
@@ -2166,16 +2280,19 @@ export function RulesModal({ onClose }: { onClose: () => void }) { /* … */ }
 
 Puis : `git rm src/pages/Rules.tsx`
 
-- [ ] **Step 3: Vérifier la compilation**
+- [ ] **Step 4: Vérifier la compilation et le lint**
 
-Run: `npx tsc -b --noEmit`
-Expected: aucune erreur.
+Run: `npx tsc -b --noEmit && npm run lint`
+Expected: aucune erreur — **ni de compilation, ni de lint**. C'est la tâche qui
+solde la dernière des quatre erreurs de lint préexistantes du dépôt (les trois
+autres partent avec `NavBar.tsx` et `Leaderboard.tsx` en Tâche C4, et avec la
+réécriture de `useTraining.ts` en Tâche C3).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add -A
-git commit -m "feat(ui): modale réutilisable et règles en modale"
+git commit -m "feat(ui): modale réutilisable, règles en modale, mapping des rôles extrait"
 ```
 
 ---
