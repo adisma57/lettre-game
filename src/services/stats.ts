@@ -136,3 +136,19 @@ export function saveStats(stats: Stats): boolean {
     return false;
   }
 }
+
+/**
+ * Whether localStorage is actually usable. Distinguishes a brand-new player
+ * from one whose storage is blocked — both otherwise show empty stats, and
+ * telling a blocked player "0 games" would be a lie.
+ */
+export function isStatsStorageAvailable(): boolean {
+  try {
+    const probe = "quadra:probe";
+    localStorage.setItem(probe, "1");
+    localStorage.removeItem(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}

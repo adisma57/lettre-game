@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
-import { loadStats, saveStats, createEmptyStats, STATS_STORAGE_KEY } from "./stats";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { loadStats, saveStats, createEmptyStats, isStatsStorageAvailable, STATS_STORAGE_KEY } from "./stats";
 
 describe("loadStats", () => {
   beforeEach(() => localStorage.clear());
@@ -41,5 +41,20 @@ describe("loadStats", () => {
     const stats = { ...createEmptyStats(), gamesPlayed: 3, lastPlayedDate: "2026-09-10" };
     expect(saveStats(stats)).toBe(true);
     expect(loadStats()).toEqual(stats);
+  });
+});
+
+describe("isStatsStorageAvailable", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("renvoie true quand localStorage fonctionne", () => {
+    expect(isStatsStorageAvailable()).toBe(true);
+  });
+
+  it("renvoie false quand localStorage lève une exception (navigation privée iOS)", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    expect(isStatsStorageAvailable()).toBe(false);
   });
 });
