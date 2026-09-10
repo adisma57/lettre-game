@@ -1,14 +1,5 @@
 import type { ScoreResult } from "../../engine/types";
-
-type LetterRole = "unused" | "insert" | "unordered" | "ordered";
-
-// Role → Tailwind text color (used by Rules page via ROLE_CLASS_BY_STRING)
-const ROLE_CLASS: Record<LetterRole, string> = {
-  ordered:   "text-primary",
-  unordered: "text-primary/60",
-  insert:    "text-fg-sub",
-  unused:    "text-muted",
-};
+import { ROLE_CLASS, type LetterRole } from "./letterRoles";
 
 function computeLetterRoles(
   word: string,
@@ -47,6 +38,3 @@ export function ColoredWord({ score }: ColoredWordProps) {
     </span>
   );
 }
-
-// Re-export role mapping for Rules page (color legend)
-export const ROLE_CLASS_BY_STRING: Record<string, string> = ROLE_CLASS;
