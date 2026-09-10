@@ -101,8 +101,26 @@ export async function ensureSchema(): Promise<void> {
   // Archive the old username + leaderboard schema. A device_id cannot be
   // reconstructed from a username, so no migration is possible; renaming is
   // reversible, dropping is not.
-  await sql`ALTER TABLE IF EXISTS scores RENAME TO scores_archive`;
-  await sql`ALTER TABLE IF EXISTS users  RENAME TO users_archive`;
+  //
+  // `ALTER TABLE IF EXISTS x RENAME TO y` guards only the *source* name: if the
+  // target already exists it still raises "relation already exists". Since this
+  // runs on every cold start, an unguarded rename would turn one odd database
+  // state into a permanent outage — ensureSchema() throws, and every request
+  // with it. Renaming only when the source exists AND the target does not makes
+  // it safe to run forever.
+  await sql`
+    DO $$
+    BEGIN
+      IF to_regclass('public.scores') IS NOT NULL
+         AND to_regclass('public.scores_archive') IS NULL THEN
+        ALTER TABLE scores RENAME TO scores_archive;
+      END IF;
+      IF to_regclass('public.users') IS NOT NULL
+         AND to_regclass('public.users_archive') IS NULL THEN
+        ALTER TABLE users RENAME TO users_archive;
+      END IF;
+    END $$
+  `;
 }
 
 export async function insertPlay(
