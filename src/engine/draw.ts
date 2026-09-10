@@ -1,4 +1,5 @@
 import type { Draw } from "./types";
+import { getTodayKey } from "./dayKey";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -35,21 +36,17 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// UTC date → integer seed, e.g. 2026-04-04 → 20260404
-function dateToSeed(date: Date): number {
-  return (
-    date.getUTCFullYear() * 10000 +
-    (date.getUTCMonth() + 1) * 100 +
-    date.getUTCDate()
-  );
+// "2026-04-04" → 20260404
+function dayKeyToSeed(dayKey: string): number {
+  return Number(dayKey.replace(/-/g, ""));
 }
 
 /**
- * Returns the same Draw for every user on the same UTC calendar day.
- * Pure function — safe to call server-side with the same result.
+ * Returns the same draw for every player on a given day.
+ * Pure function — the server gets the same result as the client.
  */
-export function getDailyDraw(date: Date = new Date()): Draw {
-  const rng = mulberry32(dateToSeed(date));
+export function getDailyDraw(dayKey: string = getTodayKey()): Draw {
+  const rng = mulberry32(dayKeyToSeed(dayKey));
   return Array.from({ length: 4 }, () =>
     WEIGHTED_POOL[Math.floor(rng() * WEIGHTED_POOL.length)]
   );

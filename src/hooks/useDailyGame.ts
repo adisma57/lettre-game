@@ -34,7 +34,7 @@ export type GameState = {
 };
 
 export function useDailyGame(username: string | null): GameState {
-  const [draw, setDraw]           = useState<Draw>(() => getDailyDraw());
+  const [draw, setDraw]           = useState<Draw>(() => getDailyDraw(getTodayKey()));
   const [phase, setPhase]         = useState<Phase>({ kind: "playing" });
   const [attempts, setAttempts]   = useState<AttemptRecord[]>([]);
   const [bestPossibleScore, setBestPossibleScore] = useState<number>(-1);
