@@ -4,7 +4,7 @@ import type { RoundResult } from "../engine/RoundService";
 import type { SolverResult } from "../engine/solver";
 import { evaluateRound } from "../engine/RoundService";
 import { normalizeWord } from "../engine/score";
-import { mainValidator } from "../engine/mainDictionary";
+import { mainValidator, loadMainDictionary, isDictionaryReady } from "../engine/mainDictionary";
 import { getDailyDraw } from "../engine/draw";
 import { getTodayKey } from "../engine/dayKey";
 import {
@@ -40,6 +40,7 @@ export type GameState = {
   retryRound: () => void;
   revealAnswers: () => void;
   currentAttemptResult: RoundResult | null;
+  dictReady: boolean;
 };
 
 export function useDailyGame(): GameState {
@@ -58,6 +59,20 @@ export function useDailyGame(): GameState {
   const [inputWord, setInputWordState] = useState("");
   const [isInputValid, setIsInputValid] = useState<boolean | null>(null);
   const [currentAttemptResult, setCurrentAttemptResult] = useState<RoundResult | null>(null);
+  const [dictReady, setDictReady] = useState(isDictionaryReady());
+
+  // Kicks off the dictionary load off the critical path. Wrapped in an async
+  // IIFE (rather than `void loadMainDictionary().then(...)` directly) for the
+  // same reason as useTraining's loadRound effect: it keeps the
+  // react-hooks/set-state-in-effect static analysis from tracing a synchronous
+  // setState call back into this effect. setDictReady only ever runs after
+  // `await`, in a microtask queued outside the effect's synchronous execution.
+  useEffect(() => {
+    void (async () => {
+      await loadMainDictionary();
+      setDictReady(true);
+    })();
+  }, []);
 
   // Setting state here (rather than in the debounce effect below) keeps this
   // a plain event-handler-triggered update, not a synchronous setState inside
@@ -92,15 +107,17 @@ export function useDailyGame(): GameState {
     })();
   }, []);
 
-  // Debounced input validation (300 ms)
+  // Debounced input validation (300 ms). Skipped until the dictionary has
+  // loaded — otherwise every word would flash a false "not in dictionary"
+  // border while it's still in flight.
   useEffect(() => {
-    if (inputWord === "") return;
+    if (inputWord === "" || !dictReady) return;
     const timer = setTimeout(() => {
       const normalized = normalizeWord(inputWord).trim();
       setIsInputValid(normalized ? mainValidator(normalized) : null);
     }, 300);
     return () => clearTimeout(timer);
-  }, [inputWord]);
+  }, [inputWord, dictReady]);
 
   /** Ends the game: fetches answer, top 10 and percentile, then updates stats. */
   const finish = useCallback(
@@ -138,6 +155,8 @@ export function useDailyGame(): GameState {
   );
 
   const submitWord = useCallback(() => {
+    if (!dictReady) return; // guard: mainValidator would wrongly reject every word until loaded
+
     const result = evaluateRound(state.draw, inputWord, mainValidator);
 
     if (!result.isValid) {
@@ -181,7 +200,7 @@ export function useDailyGame(): GameState {
       setPhase(over ? { kind: "completed" } : { kind: "attempt_shown" });
       if (over) await finish(next, bestScore, attemptNum);
     })();
-  }, [state, inputWord, finish]);
+  }, [state, inputWord, finish, dictReady]);
 
   const retryRound = useCallback(() => {
     setInputWord("");
@@ -211,5 +230,6 @@ export function useDailyGame(): GameState {
     playersToday: state.playersToday,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, revealAnswers, currentAttemptResult,
+    dictReady,
   };
 }

@@ -11,6 +11,7 @@ export default function Training() {
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, nextRound,
     currentResult, bestPossibleScore, top3,
+    dictReady,
   } = useTraining();
 
   if (loading) {
@@ -37,12 +38,16 @@ export default function Training() {
             onChange={setInputWord}
             onSubmit={submitWord}
             isValid={isInputValid}
+            disabled={!dictReady}
             error={
               currentResult?.invalidReason === "not_in_dictionary"
                 ? "Mot non reconnu dans le dictionnaire."
                 : undefined
             }
           />
+          {!dictReady && (
+            <p className="mt-2 text-sm text-muted">Chargement du dictionnaire…</p>
+          )}
         </div>
       )}
 

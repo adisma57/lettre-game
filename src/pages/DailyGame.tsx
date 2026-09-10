@@ -146,6 +146,7 @@ export default function DailyGame() {
     bestPossibleScore, bestWord, topWords, percentile, playersToday,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, revealAnswers, currentAttemptResult,
+    dictReady,
   } = useDailyGame();
 
   const [modal, setModal] = useState<"rules" | "stats" | null>(null);
@@ -193,12 +194,16 @@ export default function DailyGame() {
             onChange={setInputWord}
             onSubmit={submitWord}
             isValid={isInputValid}
+            disabled={!dictReady}
             error={
               currentAttemptResult?.invalidReason === "not_in_dictionary"
                 ? "Mot non reconnu dans le dictionnaire."
                 : undefined
             }
           />
+          {!dictReady && (
+            <p className="mt-2 text-sm text-muted">Chargement du dictionnaire…</p>
+          )}
         </div>
       )}
 

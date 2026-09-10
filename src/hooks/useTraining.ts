@@ -3,7 +3,7 @@ import type { Draw } from "../engine/types";
 import type { RoundResult } from "../engine/RoundService";
 import { evaluateRound } from "../engine/RoundService";
 import { normalizeWord } from "../engine/score";
-import { mainValidator } from "../engine/mainDictionary";
+import { mainValidator, loadMainDictionary, isDictionaryReady } from "../engine/mainDictionary";
 import type { SolverResult } from "../engine/solver";
 import { fetchTrainingRound } from "../services/api";
 
@@ -22,6 +22,7 @@ export type TrainingState = {
   currentResult: RoundResult | null;
   bestPossibleScore: number;      // -1 before first valid submit
   top3: SolverResult[];
+  dictReady: boolean;
 };
 
 export function useTraining(): TrainingState {
@@ -34,6 +35,7 @@ export function useTraining(): TrainingState {
   const [currentResult, setCurrentResult] = useState<RoundResult | null>(null);
   const [bestPossibleScore, setBestPossibleScore] = useState<number>(-1);
   const [top3, setTop3]           = useState<SolverResult[]>([]);
+  const [dictReady, setDictReady] = useState(isDictionaryReady());
 
   // Setting state here (rather than in the debounce effect below) keeps this
   // a plain event-handler-triggered update, not a synchronous setState inside
@@ -64,17 +66,32 @@ export function useTraining(): TrainingState {
   // queued outside the effect's synchronous execution.
   useEffect(() => { void (async () => { await loadRound(); })(); }, [loadRound]);
 
-  // Debounced input validity check (300 ms)
+  // Kicks off the dictionary load off the critical path. Same async-IIFE
+  // shape as loadRound's effect above, for the same reason: it keeps
+  // react-hooks/set-state-in-effect from flagging a synchronous setState
+  // inside this effect. setDictReady only runs after `await`.
   useEffect(() => {
-    if (inputWord === "") return;
+    void (async () => {
+      await loadMainDictionary();
+      setDictReady(true);
+    })();
+  }, []);
+
+  // Debounced input validity check (300 ms). Skipped until the dictionary
+  // has loaded — otherwise every word would flash a false "not in
+  // dictionary" border while it's still in flight.
+  useEffect(() => {
+    if (inputWord === "" || !dictReady) return;
     const timer = setTimeout(() => {
       const normalized = normalizeWord(inputWord).trim();
       setIsInputValid(normalized ? mainValidator(normalized) : null);
     }, 300);
     return () => clearTimeout(timer);
-  }, [inputWord]);
+  }, [inputWord, dictReady]);
 
   const submitWord = useCallback(() => {
+    if (!dictReady) return; // guard: mainValidator would wrongly reject every word until loaded
+
     const result = evaluateRound(draw, inputWord, mainValidator);
 
     if (!result.isValid) {
@@ -86,7 +103,7 @@ export function useTraining(): TrainingState {
     setTop3(pendingTop3);
     setCurrentResult(result);
     setPhase({ kind: "results" });
-  }, [draw, inputWord, pendingTop3]);
+  }, [draw, inputWord, pendingTop3, dictReady]);
 
   const retryRound = useCallback(() => {
     setInputWord("");
@@ -110,5 +127,6 @@ export function useTraining(): TrainingState {
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, nextRound,
     currentResult, bestPossibleScore, top3,
+    dictReady,
   };
 }
