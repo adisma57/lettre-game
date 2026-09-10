@@ -7,11 +7,15 @@ import { Button } from "../components/ui/Button";
 
 export default function Training() {
   const {
-    draw, phase,
+    draw, loading, phase,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, nextRound,
     currentResult, bestPossibleScore, top3,
   } = useTraining();
+
+  if (loading) {
+    return <p className="text-center text-muted">Chargement du tirage…</p>;
+  }
 
   return (
     <div className="mx-auto max-w-lg">
