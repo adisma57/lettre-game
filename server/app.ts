@@ -1,15 +1,5 @@
 import { Hono } from "hono";
-import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
-import {
-  ensureSchema,
-  findUserIdByUsername,
-  getLeaderboard,
-  insertAttempt,
-  insertUser,
-  upsertDailyPuzzle,
-  usernameExists,
-} from "./repo.js";
 
 const app = new Hono().basePath("/api");
 
@@ -35,14 +25,6 @@ app.use(
   }),
 );
 
-let schemaReady: Promise<void> | undefined;
-/** Ne pas passer par un middleware global : sur Vercel le pathname peut ne pas être `/api/health`. */
-const withDb: MiddlewareHandler = async (_c, next) => {
-  schemaReady ??= ensureSchema();
-  await schemaReady;
-  await next();
-};
-
 app.get("/health", (c) =>
   c.json({ ok: true, t: new Date().toISOString() }),
 );
@@ -50,91 +32,6 @@ app.get("/health", (c) =>
 app.onError((err, c) => {
   console.error("[server error]", err);
   return c.json({ error: "Erreur serveur." }, 500);
-});
-
-// ─── POST /api/users ──────────────────────────────────────────────────────────
-
-app.post("/users", withDb, async (c) => {
-  const body = (await c.req
-    .json()
-    .catch(() => ({}))) as { username?: string };
-  const username = (body.username ?? "").trim();
-
-  if (!username || username.length < 2 || username.length > 20) {
-    return c.json({ error: "Le pseudo doit faire entre 2 et 20 caractères." }, 400);
-  }
-  if (!/^[A-Za-z0-9_-]+$/.test(username)) {
-    return c.json({ error: "Caractères autorisés : lettres, chiffres, _ et -." }, 400);
-  }
-
-  const result = await insertUser(username);
-  if (!result.ok) {
-    return c.json({ error: "Ce pseudo est déjà pris." }, 409);
-  }
-  return c.json({ username }, 201);
-});
-
-// ─── POST /api/scores ────────────────────────────────────────────────────────
-
-app.post("/scores", withDb, async (c) => {
-  const username = c.req.header("X-Username")?.trim();
-  if (!username) return c.json({ error: "En-tête X-Username manquant." }, 401);
-
-  const userId = await findUserIdByUsername(username);
-  if (userId == null) return c.json({ error: "Utilisateur inconnu." }, 404);
-
-  const body = (await c.req
-    .json()
-    .catch(() => ({}))) as {
-    date?: string;
-    attempt_num?: number;
-    score?: number;
-    best_possible?: number;
-  };
-
-  const { date, attempt_num, score, best_possible } = body;
-  if (
-    typeof date !== "string" ||
-    typeof attempt_num !== "number" ||
-    typeof score !== "number" ||
-    typeof best_possible !== "number"
-  ) {
-    return c.json({ error: "Champs requis : date, attempt_num, score, best_possible." }, 400);
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return c.json({ error: "Format de date invalide (YYYY-MM-DD attendu)." }, 400);
-  }
-  if (score < 0 || best_possible < 0 || attempt_num < 1 || attempt_num > 3) {
-    return c.json({ error: "Valeurs hors limites." }, 400);
-  }
-
-  await upsertDailyPuzzle(date, best_possible);
-  await insertAttempt(userId, date, attempt_num, score, best_possible);
-
-  return c.json({ ok: true });
-});
-
-// ─── GET /api/leaderboard ─────────────────────────────────────────────────────
-
-type SortKey = "weekly" | "monthly" | "global";
-
-app.get("/leaderboard", withDb, async (c) => {
-  const sortParam = (c.req.query("sort") ?? "weekly") as SortKey;
-  const sort: SortKey =
-    sortParam === "monthly" || sortParam === "global"
-      ? sortParam
-      : "weekly";
-
-  const ranked = await getLeaderboard(sort);
-  return c.json(ranked);
-});
-
-// ─── GET /api/users/:name/exists ─────────────────────────────────────────────
-
-app.get("/users/:name/exists", withDb, async (c) => {
-  const name = c.req.param("name");
-  const exists = await usernameExists(name);
-  return c.json({ exists });
 });
 
 export { app };
