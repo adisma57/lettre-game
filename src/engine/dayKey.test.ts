@@ -107,6 +107,22 @@ describe("isDayKey", () => {
   it("rejette une date sémantiquement invalide (mois hors plage)", () => {
     expect(isDayKey("2026-13-01")).toBe(false);
   });
+
+  it("rejette un mois à zéro", () => {
+    expect(isDayKey("2026-00-10")).toBe(false);
+  });
+
+  it("rejette l'année zéro", () => {
+    expect(isDayKey("0000-01-01")).toBe(false);
+  });
+
+  it("rejette un espace en tête", () => {
+    expect(isDayKey(" 2026-01-01")).toBe(false);
+  });
+
+  it("rejette un espace en fin", () => {
+    expect(isDayKey("2026-01-01 ")).toBe(false);
+  });
 });
 
 describe("puzzleNumber", () => {

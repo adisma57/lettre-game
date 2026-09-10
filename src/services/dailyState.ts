@@ -9,7 +9,7 @@ export type AttemptRecord = {
 
 export type DailyState = {
   _v: 1;                        // schema version — bump on breaking changes
-  date: string;                 // "YYYY-MM-DD" UTC
+  date: string;                 // "YYYY-MM-DD" (Europe/Paris)
   draw: Draw;
   attempts: AttemptRecord[];    // max 3 entries
   bestPossibleScore: number;    // -1 until first submit

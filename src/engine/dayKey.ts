@@ -31,6 +31,12 @@ export function isDayKey(value: unknown): value is string {
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
 
+  // Note: this round-trip also rejects year values 0-99 (e.g. "0000-01-01"),
+  // but only as a side effect of Date.UTC's legacy two-digit-year remapping
+  // (Date.UTC(0, 0, 1) yields year 1900, so date.getUTCFullYear() !== year
+  // and the comparison below fails). A future reader "simplifying" this
+  // round-trip could silently reintroduce that remapping and break the
+  // rejection of those years.
   return (
     date.getUTCFullYear() === year &&
     date.getUTCMonth() === month - 1 &&
@@ -48,8 +54,8 @@ export function isDayKey(value: unknown): value is string {
  * to filter with `isDayKey` first.
  */
 export function daysBetween(a: string, b: string): number {
-  if (!isDayKey(a)) throw new Error(`Clé de jour invalide : "${a}"`);
-  if (!isDayKey(b)) throw new Error(`Clé de jour invalide : "${b}"`);
+  if (!isDayKey(a)) throw new Error(`Invalid day key: "${a}"`);
+  if (!isDayKey(b)) throw new Error(`Invalid day key: "${b}"`);
 
   const ms = Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`);
   return Math.round(ms / 86_400_000);
