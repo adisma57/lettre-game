@@ -1,5 +1,12 @@
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
+import { ensureSchema, insertPlay, getDailyPercentile } from "./repo.js";
+import { resolveBestPossible, resolveAnswers } from "./daily.js";
+import { getTodayKey } from "../src/engine/dayKey.js";
+import { createDraw } from "../src/engine/RoundService.js";
+import { solveTopN } from "../src/engine/solver.js";
+import { solverDictionary } from "./dictionary.js";
 
 const app = new Hono().basePath("/api");
 
@@ -21,17 +28,76 @@ app.use(
   "*",
   cors({
     origin: corsOrigins(),
-    allowHeaders: ["Content-Type", "X-Username"],
+    allowHeaders: ["Content-Type"],
   }),
 );
 
-app.get("/health", (c) =>
-  c.json({ ok: true, t: new Date().toISOString() }),
-);
+let schemaReady: Promise<void> | undefined;
+/** Not a global middleware: on Vercel the pathname may not be `/api/health`. */
+const withDb: MiddlewareHandler = async (_c, next) => {
+  schemaReady ??= ensureSchema();
+  await schemaReady;
+  await next();
+};
+
+app.get("/health", (c) => c.json({ ok: true, t: new Date().toISOString() }));
 
 app.onError((err, c) => {
   console.error("[server error]", err);
   return c.json({ error: "Erreur serveur." }, 500);
+});
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE = /^[0-9a-fA-F-]{36}$/;
+
+/** Rejects a malformed date, or one later than the current Paris day. */
+function invalidDate(date: string): boolean {
+  return !DATE_RE.test(date) || date > getTodayKey();
+}
+
+app.post("/daily/:date/attempt", withDb, async (c) => {
+  const date = c.req.param("date");
+  if (invalidDate(date)) return c.json({ error: "Date invalide." }, 400);
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    deviceId?: string;
+    attemptNum?: number;
+    score?: number;
+  };
+
+  if (typeof body.deviceId !== "string" || !UUID_RE.test(body.deviceId)) {
+    return c.json({ error: "Identifiant d'appareil invalide." }, 400);
+  }
+  if (typeof body.attemptNum !== "number" || body.attemptNum < 1 || body.attemptNum > 3) {
+    return c.json({ error: "Numéro d'essai hors limites." }, 400);
+  }
+  if (typeof body.score !== "number" || body.score < 0) {
+    return c.json({ error: "Score invalide." }, 400);
+  }
+
+  const bestPossible = await resolveBestPossible(date);
+  await insertPlay(body.deviceId, date, body.attemptNum, body.score);
+
+  return c.json({ bestPossible });
+});
+
+app.post("/daily/:date/finish", withDb, async (c) => {
+  const date = c.req.param("date");
+  if (invalidDate(date)) return c.json({ error: "Date invalide." }, 400);
+
+  const body = (await c.req.json().catch(() => ({}))) as { score?: number };
+  const score = typeof body.score === "number" && body.score >= 0 ? body.score : 0;
+
+  const { bestWord, topWords } = await resolveAnswers(date);
+  const { percentile, playersToday } = await getDailyPercentile(date, score);
+
+  return c.json({ bestWord, topWords, percentile, playersToday });
+});
+
+app.get("/training", async (c) => {
+  const draw = createDraw();
+  const top3 = solveTopN(draw, solverDictionary, 3);
+  return c.json({ draw, top3 });
 });
 
 export { app };
