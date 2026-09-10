@@ -96,6 +96,24 @@ describe("applyResult — série", () => {
     expect(next.currentStreak).toBe(1);
   });
 
+  it("même jour rejoué → série inchangée, jamais remise à 1", () => {
+    const next = applyResult(
+      statsAt({ gamesPlayed: 3, currentStreak: 8, maxStreak: 8, lastPlayedDate: "2026-09-10" }),
+      { date: "2026-09-10", score: 12, bestPossible: 20, attempts: 1 },
+    );
+    expect(next.currentStreak).toBe(8);
+    expect(next.lastPlayedDate).toBe("2026-09-10");
+  });
+
+  it("horloge reculée (écart négatif) → série inchangée et dernière partie non reculée", () => {
+    const next = applyResult(
+      statsAt({ gamesPlayed: 3, currentStreak: 8, maxStreak: 8, lastPlayedDate: "2026-09-12" }),
+      { date: "2026-09-10", score: 12, bestPossible: 20, attempts: 1 },
+    );
+    expect(next.currentStreak).toBe(8);
+    expect(next.lastPlayedDate).toBe("2026-09-12");
+  });
+
   it("maxStreak conserve le record après une série cassée", () => {
     const next = applyResult(
       statsAt({ gamesPlayed: 1, currentStreak: 9, maxStreak: 12, lastPlayedDate: "2026-09-10" }),

@@ -60,21 +60,31 @@ export function applyResult(stats: Stats, result: GameResult): Stats {
   };
 
   // ─── Streak ───
-  if (stats.lastPlayedDate === null) {
+  const gap =
+    stats.lastPlayedDate === null
+      ? null
+      : daysBetween(stats.lastPlayedDate, result.date);
+
+  if (gap === null) {
     next.currentStreak = 1;
+  } else if (gap <= 0) {
+    // Same day replayed, or a device clock that moved backwards. The habit is
+    // unbroken either way, so leave the streak alone. Resetting here would let
+    // a duplicate call — or a traveller crossing a time zone — silently wipe a
+    // streak the player never actually broke.
+    next.currentStreak = stats.currentStreak;
+  } else if (gap === 1) {
+    next.currentStreak = stats.currentStreak + 1;
+  } else if (gap === 2 && jokerAvailable(stats, result.date)) {
+    next.currentStreak = stats.currentStreak + 1;
+    next.jokerUsedOn = result.date;
   } else {
-    const gap = daysBetween(stats.lastPlayedDate, result.date);
-    if (gap === 1) {
-      next.currentStreak = stats.currentStreak + 1;
-    } else if (gap === 2 && jokerAvailable(stats, result.date)) {
-      next.currentStreak = stats.currentStreak + 1;
-      next.jokerUsedOn = result.date;
-    } else {
-      next.currentStreak = 1;
-    }
+    next.currentStreak = 1;
   }
+
   next.maxStreak = Math.max(stats.maxStreak, next.currentStreak);
-  next.lastPlayedDate = result.date;
+  // Never let the last played day move backwards.
+  next.lastPlayedDate = gap !== null && gap < 0 ? stats.lastPlayedDate : result.date;
 
   // ─── Aggregates ───
   next.gamesPlayed = stats.gamesPlayed + 1;
