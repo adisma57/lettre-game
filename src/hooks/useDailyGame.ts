@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Draw } from "../engine/types";
 import type { RoundResult } from "../engine/RoundService";
 import type { SolverResult } from "../engine/solver";
@@ -44,27 +44,43 @@ export type GameState = {
 
 export function useDailyGame(): GameState {
   const today = getTodayKey();
-  const [state, setState] = useState<DailyState>(() =>
-    createFreshState(today, getDailyDraw(today)),
+  const [state, setState] = useState<DailyState>(
+    () => loadDailyState() ?? createFreshState(today, getDailyDraw(today)),
   );
-  const [phase, setPhase] = useState<Phase>({ kind: "playing" });
-  const [inputWord, setInputWord] = useState("");
+  const [phase, setPhase] = useState<Phase>(() => {
+    const s = loadDailyState();
+    if (!s) return { kind: "playing" };
+    return s.revealed  ? { kind: "revealed" }
+         : s.completed ? { kind: "completed" }
+         : s.attempts.length > 0 ? { kind: "attempt_shown" }
+         : { kind: "playing" };
+  });
+  const [inputWord, setInputWordState] = useState("");
   const [isInputValid, setIsInputValid] = useState<boolean | null>(null);
   const [currentAttemptResult, setCurrentAttemptResult] = useState<RoundResult | null>(null);
 
-  // Restore saved state and replay any queued attempts
-  useEffect(() => {
-    const saved = loadDailyState();
-    if (saved) {
-      setState(saved);
-      setPhase(
-        saved.revealed  ? { kind: "revealed"      } :
-        saved.completed ? { kind: "completed"     } :
-        saved.attempts.length > 0 ? { kind: "attempt_shown" } :
-                                    { kind: "playing" },
-      );
-    }
+  // Setting state here (rather than in the debounce effect below) keeps this
+  // a plain event-handler-triggered update, not a synchronous setState inside
+  // an effect.
+  const setInputWord = useCallback((w: string) => {
+    setInputWordState(w);
+    if (w === "") setIsInputValid(null);
+  }, []);
 
+  // Guards against submitWord's async continuation and revealAnswers both
+  // calling finish() with a stats write for the same game. The persisted
+  // `statsApplied` flag on DailyState survives reloads (so a later visit
+  // won't reapply stats for an already-finished game), but it cannot by
+  // itself prevent two concurrent callers *within the same page load* from
+  // both reading it as false before either has written `true` back — that's
+  // exactly the race a network round trip opens up. This ref is checked and
+  // set synchronously (no `await` in between), so whichever caller reaches
+  // `finish` first claims the write and the other is locked out, regardless
+  // of how the two calls interleave around their own awaits.
+  const statsWritten = useRef(false);
+
+  // Replay any queued attempts left over from a previous session.
+  useEffect(() => {
     const queue = loadPending();
     if (queue.length === 0) return;
     const deviceId = getDeviceId();
@@ -78,10 +94,7 @@ export function useDailyGame(): GameState {
 
   // Debounced input validation (300 ms)
   useEffect(() => {
-    if (inputWord === "") {
-      setIsInputValid(null);
-      return;
-    }
+    if (inputWord === "") return;
     const timer = setTimeout(() => {
       const normalized = normalizeWord(inputWord).trim();
       setIsInputValid(normalized ? mainValidator(normalized) : null);
@@ -92,6 +105,11 @@ export function useDailyGame(): GameState {
   /** Ends the game: fetches answer, top 10 and percentile, then updates stats. */
   const finish = useCallback(
     async (finalState: DailyState, bestScore: number, attemptCount: number) => {
+      // Check-and-set must happen synchronously, before the first `await`
+      // below, so no other call to `finish` can slip in between.
+      const shouldApplyStats = !finalState.statsApplied && !statsWritten.current;
+      if (shouldApplyStats) statsWritten.current = true;
+
       const answers = await fetchFinish(finalState.date, bestScore);
 
       const next: DailyState = {
@@ -102,7 +120,7 @@ export function useDailyGame(): GameState {
         playersToday: answers?.playersToday ?? 0,
       };
 
-      if (!finalState.statsApplied) {
+      if (shouldApplyStats) {
         const stats = applyResult(loadStats(), {
           date: finalState.date,
           score: bestScore,
@@ -167,10 +185,9 @@ export function useDailyGame(): GameState {
 
   const retryRound = useCallback(() => {
     setInputWord("");
-    setIsInputValid(null);
     setCurrentAttemptResult(null);
     setPhase({ kind: "playing" });
-  }, []);
+  }, [setInputWord]);
 
   const revealAnswers = useCallback(() => {
     const next: DailyState = { ...state, revealed: true, completed: true };
