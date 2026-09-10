@@ -287,7 +287,7 @@ tous les cas.
 ```
 Quadra #142 — 21/24 🟧🟧🟧⬜ ✅
 Série 7 🔥 · mieux que 68 % des joueurs
-https://quadramots.fr
+https://quadra-mots.fr
 ```
 
 - **Quatre cases**, une par lettre du tirage : 🟧 utilisée, ⬜ non utilisée. Dérivées de
@@ -325,7 +325,8 @@ Déclenchement : `navigator.share({ text })` si disponible, sinon
 `og:url`, `og:type`, `twitter:card` (`summary_large_image`). Chaque lien partagé affiche une
 carte — c'est le premier contact de la majorité des nouveaux joueurs.
 
-Le domaine est une **constante unique** partagée par `buildShareText()` et les métadonnées.
+Le domaine provient de la constante `SITE_URL` de `src/config.ts` (cf. § 11), jamais écrit en
+dur dans le texte de partage.
 
 ---
 
@@ -455,8 +456,10 @@ l'en-tête `X-Username`.
 ## 11. Plateforme
 
 - **Hébergement :** Vercel, inchangé. Neon est déjà branché via `api/[[...route]].ts`.
-- **Domaine :** `quadramots.fr` en canonique, `quadra-mots.fr` en redirection (~16 €/an).
+- **Domaine :** `quadra-mots.fr`, seul et canonique (~8 €/an), acheté chez OVHcloud.
   À acheter avant toute communication : un lien partagé ne passe qu'une fois.
+  Il vit dans la constante `SITE_URL` de `src/config.ts`, partagée par `buildShareText()` et
+  les métadonnées Open Graph — en changer plus tard ne touche qu'un fichier.
 - **PWA :** `vite-plugin-pwa`. Les icônes existent déjà dans `public/`. Manifest, écran
   d'accueil, mise en cache de la coquille et du dictionnaire. Ce n'est pas qu'un confort :
   **l'installation exonère de la purge ITP à 7 jours sur iOS** (§ 3), donc c'est ce qui
