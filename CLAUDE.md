@@ -5,10 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev       # Start Vite dev server (localhost:5173, HMR)
-npm run server    # Start Hono API server (localhost:3001)
+npm run dev       # Vite dev server (localhost:5173, HMR)
+npm run server    # Hono API server (localhost:3001)
 npm run build     # Type-check (tsc) then bundle (vite)
-npm run lint      # ESLint
+npm run lint      # ESLint — currently zero errors, keep it there
 npm run test      # Vitest in watch mode
 npm run preview   # Serve the production build locally
 ```
@@ -20,9 +20,18 @@ npx vitest run src/engine/score.test.ts
 
 The Vite dev server proxies `/api/*` to `localhost:3001` — run both servers in dev.
 
-## Architecture
+Inspect the solver's output on 30 consecutive daily draws:
+```bash
+npx tsx scripts/check-solver.ts
+```
 
-**Quadra** is a French word game: the player proposes a word built around a random 4-letter draw and earns points based on how well the word incorporates the drawn letters.
+## What Quadra is
+
+A French daily word game. The player is given a random 4-letter draw and proposes
+a word built around it, scoring on how well the word incorporates the drawn letters.
+
+**One puzzle per day, three attempts, no account.** Opening the site drops you
+straight into today's puzzle — there is no home page, no sign-up, no navigation bar.
 
 ### Scoring formula
 
@@ -30,161 +39,198 @@ The Vite dev server proxies `/api/*` to `localhost:3001` — run both servers in
 
 - **usedLetters** — draw letters found in the word (duplicates count separately)
 - **orderBonus** — +3 if the skeleton matches the draw order exactly
-- **insertions** — non-skeleton letters strictly between the first and last skeleton position ("the zone")
+- **insertions** — non-skeleton letters strictly between the first and last skeleton position
 
-The **skeleton** is the greedy left-to-right subsequence of word positions that consume all available draw letters.
+The **skeleton** is the greedy left-to-right subsequence of word positions that
+consume all available draw letters.
 
-### Engine layer (`src/engine/`)
+## Product rules
 
-Pure TypeScript, zero React. All game logic lives here.
+These are decisions, not implementation details. Changing them changes the game.
 
-| File | Responsibility |
-|------|----------------|
-| `types.ts` | Shared types: `Draw`, `WordValidator`, `ScoreResult`, `ScorePart` |
-| `draw.ts` | Weighted letter pool; `generateDrawWeighted(count)`; `getDailyDraw(date)` |
-| `score.ts` | `normalizeWord`, `scoreWord` — the full scoring pipeline |
-| `DictionaryService.ts` | `Dictionary` interface (`has` + `words`); `createSetDictionary`; `createWordValidatorFromDictionary` |
-| `mainDictionary.ts` | Singleton: loads `an-array-of-french-words`, exports `mainDictionary` and `mainValidator` |
-| `RoundService.ts` | `createDraw()` and `evaluateRound(draw, rawWord, validator)` |
-| `solver.ts` | `solveTopN(draw, dict, n): SolverResult[]` — full dictionary scan, sorted score desc then length asc |
-| `findBestWord.ts` | Thin wrapper around `solveTopN(…, 1)` |
+- **A day starts at midnight Europe/Paris** (`src/engine/dayKey.ts`), not UTC. A UTC
+  rollover falls at 01:00–02:00 local, which would split a French player's evening
+  across two puzzles.
+- **Finishing a game maintains the streak, whatever the score** — even zero. The
+  streak measures the habit, not the performance.
+- **One missed day is absorbed by a "joker"**, available once per rolling 7-day
+  window. Two or more missed days reset the streak to 1.
+- **Replaying the same day, or a clock that moved backwards, leaves the streak
+  untouched** — never reset. We don't punish players for something they didn't do.
+- **"Voir les réponses"** ends the game. It keeps the streak, but the game only
+  counts toward the percentile if at least one attempt was made. That rule needs no
+  flag: with one row per attempt, a reveal with no attempt simply writes no row.
+- **The percentile is hidden below 20 distinct players that day.** A percentile over
+  four games is noise; the player count is shown instead.
+- **The share text must leak nothing.** Four squares, one per *drawn letter* — never
+  one per letter of the found word, which would reveal its length.
 
-### UI layer (`src/`)
-
-React Router v6 SPA. `App.tsx` mounts `Layout` which renders `NavBar` + `<Outlet />` + `UsernameModal` (when guest).
-
-#### Reusable components
-
-| Component | Location | Used by |
-|-----------|----------|---------|
-| `Button` | `components/ui/` | everywhere — variants: primary, secondary, ghost |
-| `Card` | `components/ui/` | Rules sections, DailyGame summary |
-| `Badge` | `components/ui/` | Rules score items |
-| `DrawDisplay` | `components/game/` | DailyGame, Training, Rules examples |
-| `DrawInput` | `components/game/` | Solver (4-tile input with internal focus management) |
-| `WordInput` | `components/game/` | DailyGame, Training |
-| `ColoredWord` | `components/game/` | DailyGame, Training — exports `ROLE_CLASS_BY_STRING` for Rules |
-| `ScoreCard` | `components/game/` | DailyGame, Training |
-| `SolverResultsList` | `components/game/` | Training top-3 (collapsible) |
-| `SolverResultsTable` | `components/game/` | Solver full table |
-
-`computeLetterRoles` inside `ColoredWord` assigns display roles (`ordered` / `unordered` / `insert` / `unused`) purely from `ScoreResult` fields — no engine logic is duplicated in the UI.
-
-### Auth
-
-- `useAuth` reads/writes `auth_username` from `localStorage`
-- `UsernameModal` blocks the UI on first visit until the user picks a name (calls `POST /api/users`)
-- Username is passed as the `X-Username` header in future authenticated requests
-
-### Backend (`server/`)
-
-Hono on Node.js, `better-sqlite3`, ESM.
-
-| File | Responsibility |
-|------|----------------|
-| `db.ts` | Opens `server/quadra.sqlite`, WAL mode, creates `users` table |
-| `index.ts` | `POST /api/users`, `GET /api/users/:name/exists`, global JSON error handler |
-
-Username rules: 2–20 chars, `[A-Za-z0-9_-]` only, case-insensitive unique.
-
-### Key design notes
-
-- **`Dictionary.words()`** — `findBestWord.ts` iterates the full dictionary via `Dictionary.words(): Iterable<string>`. Do not bypass this by accessing the underlying `Set` directly.
-- **Normalization** — all text comparison goes through `score.normalizeWord`: `toUpperCase()` + NFD decomposition + diacritic strip. Called on both the word and the draw in every scoring function.
-- **Daily draw** — `getDailyDraw(date)` uses a seeded LCG (`mulberry32`-style), seed = `YYYYMMDD` integer. Same UTC date → same draw for all users.
-
-### Design tokens (Tailwind v4 — `src/index.css`)
-
-| Token | Value | Tailwind utility |
-|-------|-------|-----------------|
-| `--color-canvas` | `#0f0f0f` | `bg-canvas` |
-| `--color-surface` | `#1c1c1c` | `bg-surface` |
-| `--color-elevated` | `#252525` | `bg-elevated` |
-| `--color-line` | `#2e2e2e` | `border-line` |
-| `--color-fg` | `#f5f5f5` | `text-fg` |
-| `--color-muted` | `#737373` | `text-muted` |
-| `--color-primary` | `#f97316` | `text-primary` / `bg-primary` |
-| `--color-primary-dim` | `#ea6c0a` | `text-primary-dim` |
-| `--color-success` | `#16a34a` | `text-success` |
-| `--color-error` | `#dc2626` | `text-error` |
-| `--color-info` | `#2563eb` | `text-info` |
-
----
-
-## Development roadmap
-
-### Stack decisions (already made, do not revisit)
-
-- **Router**: React Router v6 (`createBrowserRouter` + `RouterProvider`)
-- **CSS**: Tailwind CSS v4 via `@tailwindcss/vite` — no `tailwind.config.ts`, tokens in `@theme`
-- **State**: `useState` + `useReducer` per page; `useContext` only for auth (future)
-- **Backend**: Hono on Node + SQLite (`better-sqlite3`) — username-only auth, leaderboard
+## Architecture
 
 ### Routes
 
 ```
-/           → Home
-/daily      → DailyGame   (3 tries, seeded daily draw)
-/training   → Training    (infinite random rounds)
-/solver     → Solver      (draw input → top 10 words)
-/rules      → Rules       (from src/content/rules.json)
+/               → DailyGame   (the day's puzzle, opens directly)
+/entrainement   → Training    (unlimited random rounds)
 ```
 
-### Milestones
+Rules and stats are **modals** over the game screen, not pages. The only link to
+`/entrainement` is on the end-of-game screen.
 
-#### ✅ M1 — Foundation (DONE)
-React Router v6, Tailwind v4, design tokens, `Layout` + `NavBar`, page shells.
+### Engine layer (`src/engine/`)
 
-#### ✅ M2 — Rules page (DONE)
-- `src/content/rules.json` — sections: objectif, valid-words, score, code couleur, modes
-- `src/pages/Rules.tsx` — typed renderer, 5 sub-components (Formula, ScoreItems, Examples, ColorLegend, GameModes)
+Pure TypeScript, zero React. Imported by both client and server.
 
-#### ✅ M3 — Daily draw engine + page (DONE)
-- `getDailyDraw(date: Date): Draw` — seeded LCG, seed = `YYYYMMDD`, deterministic per UTC date
-- `src/services/dailyState.ts` — localStorage CRUD (`_v: 1` schema version guard)
-- `src/hooks/useDailyGame.ts` — state machine (playing → submitted×N → completed); invalid words don't consume an attempt
-- `DailyGame.tsx` — 3-try loop; after each try shows score + best possible (no word revealed); after final try reveals best word
+| File | Responsibility |
+|------|----------------|
+| `types.ts` | `Draw`, `WordValidator`, `ScoreResult`, `ScorePart` |
+| `dayKey.ts` | `getTodayKey()` (Europe/Paris), `isDayKey`, `daysBetween`, `puzzleNumber` |
+| `draw.ts` | Weighted letter pool; `generateDrawWeighted(count)`; `getDailyDraw(dayKey)` |
+| `score.ts` | `normalizeWord`, `scoreWord` — the full scoring pipeline |
+| `DictionaryService.ts` | `Dictionary` interface (`has` + `words`); `createSetDictionary` |
+| `mainDictionary.ts` | **Lazy**: `loadMainDictionary()`, `mainValidator`, `isDictionaryReady` |
+| `RoundService.ts` | `createDraw()` and `evaluateRound(draw, rawWord, validator)` |
+| `solver.ts` | `solveTopN(draw, dict, n)` — full scan, score desc then length asc |
+| `findBestWord.ts` | Thin wrapper around `solveTopN(…, 1)` |
 
-#### ✅ M4 — Training mode (DONE)
-- `src/hooks/useTraining.ts` — round lifecycle (playing → results → playing…)
-- `Training.tsx` — colored word + score + top-3 collapsible + retry/next buttons
+`daysBetween` **throws** on a malformed day key. Callers holding untrusted data
+(localStorage, URL params) must filter with `isDayKey` first — `loadStats` does.
 
-#### ✅ M5 — Solver page (DONE)
-- `src/engine/solver.ts` — `solveTopN(draw, dict, n)`, sort: score desc, length asc on tie
-- `Solver.tsx` — 4 letter-tile inputs, top-10 results table with full score breakdown
+### Services (`src/services/`)
 
-#### ✅ M6 — Full UI redesign (DONE)
-- Extracted 10 reusable components (4 UI + 6 game) — see component table above
-- All pages refactored to use shared components
-- Deleted dead `src/App.css`
+| File | Responsibility |
+|------|----------------|
+| `deviceId.ts` | Anonymous UUID in `localStorage`, with an in-memory fallback |
+| `stats.ts` | Pure `applyResult` (streak, joker, aggregates) + `loadStats`/`saveStats` |
+| `share.ts` | Pure `buildShareText` / `drawSquares` |
+| `dailyState.ts` | Today's game state in `localStorage` (`_v: 2`) |
+| `pending.ts` | Attempts that failed to reach the server, replayed on next load |
+| `api.ts` | `submitAttempt`, `fetchFinish`, `fetchTrainingRound`, retry ×3 with backoff |
 
-#### ✅ M7 — Backend foundation (DONE)
-- `server/db.ts` + `server/index.ts` — Hono + better-sqlite3, `users` table
-- `POST /api/users` — create user (2–20 chars, unique NOCASE)
-- `GET /api/users/:name/exists` — availability check
-- `src/services/api.ts` — `createUser()`, `usernameExists()`
-- `src/hooks/useAuth.ts` — localStorage `auth_username`
-- `src/components/UsernameModal.tsx` — blocks UI until username chosen
-- Vite dev proxy: `/api` → `localhost:3001`
-- Run with: `npm run server`
+`src/config.ts` holds `SITE_URL` and `EPOCH` — the only deployment constants.
 
-#### M8 — Leaderboard *(next)*
-Depends on M7. Score submission on daily game completion. New `/leaderboard` route.
+### Components
 
-- `POST /api/scores` — submit daily score (requires `X-Username` header)
-- `GET /api/leaderboard?sort=avg_score|game_count|account_age`
-- SQLite table: `scores(id, user_id, date, score, best_possible, attempts)`
-- `src/pages/Leaderboard.tsx` — ranked table
-- Add `/leaderboard` to NavBar and router
+| Component | Location |
+|-----------|----------|
+| `Button`, `Card`, `Badge`, `Modal`, `LogoMark` | `components/ui/` |
+| `DrawDisplay`, `WordInput`, `ColoredWord`, `letterRoles`, `ScoreCard`, `SolverResults`, `ShareButton` | `components/game/` |
+| `RulesModal`, `StatsModal` | `components/modals/` |
+| `Layout` | `components/layout/` |
 
-### Dependency order
+`letterRoles.ts` holds the role → Tailwind-class map, shared by `ColoredWord` and
+the rules colour legend. It lives outside the component file so fast refresh works.
 
+### Backend (`server/`)
+
+Hono on **Vercel + Neon serverless Postgres**, ESM. Entry point `api/[[...route]].ts`.
+`server/repo.ts` has two backends: Neon when `DATABASE_URL` is set, an in-memory
+store otherwise (local dev and tests).
+
+| File | Responsibility |
+|------|----------------|
+| `app.ts` | Routes, CORS, `withDb` middleware, error handler |
+| `repo.ts` | Schema, `insertPlay`, `getDailyPercentile`, `getDailyPuzzle`, `upsertDailyPuzzle` |
+| `daily.ts` | `resolveBestPossible`, `resolveAnswers`, per-instance solver cache |
+| `dictionary.ts` | The solver's dictionary (stricter than the client's) |
+
+| Route | Body | Response |
+|---|---|---|
+| `POST /api/daily/:date/attempt` | `{ deviceId, attemptNum, score }` | `{ bestPossible }` |
+| `POST /api/daily/:date/finish` | `{ score }` | `{ bestWord, topWords, percentile, playersToday }` |
+| `GET /api/training` | — | `{ draw, top3 }` |
+| `GET /api/health` | — | `{ ok, t }` |
+
+`attempt` returns the denominator **without the answer**. `finish` returns the
+answer, **never writes**, and is re-called on every reopen of the end screen so the
+percentile refreshes through the day. `GET /api/training` returns a draw and its
+solution *together*, so the client can never request the solution to a draw of its
+choosing.
+
+```sql
+plays (id, device_id, date, attempt_num, score, created_at,
+       UNIQUE (device_id, date, attempt_num))
+daily_puzzles (date PK, best_possible, best_word)
+users_archive, scores_archive   -- renamed, not dropped: a device_id cannot be
+                                -- reconstructed from a username
 ```
-M1 ✅ → M2 ✅ (independent)
-       → M3 ✅ → M4 ✅
-       → M5 ✅ (engine) → M4 ✅ (UI)
-       → M5 ✅ (UI)
-       → M6 ✅ (after M2–M5)
-            → M7 ✅
-                → M8 (next)
-```
+
+## Dictionaries — two of them, on purpose
+
+Source: **LEFFF 3.4** (INRIA/Alexina) plus a **Dicollecte/Hunspell** supplement for
+modern vocabulary. Generated by `scripts/build-dictionary.ts`, which already
+excludes proper nouns (`pos === "np"`).
+
+- **Validation (client)** — deliberately generous. Rejecting a real word a player
+  proposed is the worst failure this game can have. ~422 000 forms, loaded with a
+  dynamic `import()` so it stays off the critical path (main chunk 319 KB, the
+  dictionary in its own chunk).
+- **Solver (server)** — stricter: letters only, no hyphenated or apostrophed forms.
+  It sets the **denominator of every player's score**, so it must only contain words
+  a player could plausibly find.
+
+⚠️ **Known issue.** The solver dictionary still returns words no ordinary player can
+find — `DIGAMMA`, `GAGAKU`, `SYNAPTOGENESE`, and *passé simple* forms like
+`FENDIMES`. Running `scripts/check-solver.ts` shows roughly a dozen of thirty. This
+distorts every player's score, the accuracy stat and the percentile. It needs
+frequency curation (Lexique 383) or a filter on rare tenses before launch.
+
+## Key design notes
+
+- **Normalization** — all text comparison goes through `score.normalizeWord`:
+  `toUpperCase()` + NFD decomposition + diacritic strip.
+- **Daily draw** — `getDailyDraw(dayKey)` uses a seeded LCG (`mulberry32`-style),
+  seed = `YYYYMMDD`. Same Paris day → same draw for everyone. Client and server
+  compute it independently and must agree.
+- **`localStorage` is not reliable.** Commit `2adf39b` documented iOS Safari
+  silently failing it in private browsing and under ITP. Every access is wrapped;
+  `deviceId` falls back to memory; `StatsModal` distinguishes "no games yet" from
+  "storage blocked". Installing the PWA is what exempts a site from ITP's 7-day
+  purge — that is what protects players' streaks, not a nice-to-have.
+- **Double-counting guards** — a game must be counted once. `dailyState.statsApplied`
+  survives reloads; a `useRef` in `useDailyGame` covers concurrent callers within one
+  page load. Both are needed.
+- **`react-hooks/set-state-in-effect`** is enforced. A synchronous `setState` in an
+  effect body will fail lint; put it in the `useState` initialiser or an event
+  handler instead.
+
+## Design tokens (Tailwind v4 — `src/index.css`)
+
+| Token | Value | Utility |
+|-------|-------|---------|
+| `--color-canvas` | `#0c0b09` | `bg-canvas` |
+| `--color-surface` | `#141210` | `bg-surface` |
+| `--color-elevated` | `#1d1a16` | `bg-elevated` |
+| `--color-line` | `#2c2620` | `border-line` |
+| `--color-fg` | `#f2ede6` | `text-fg` |
+| `--color-fg-sub` | `#c0b8ac` | `text-fg-sub` |
+| `--color-muted` | `#6a6050` | `text-muted` |
+| `--color-primary` | `#f97316` | `text-primary` / `bg-primary` |
+| `--color-primary-dim` | `#c45810` | `text-primary-dim` |
+| `--color-success` | `#22c55e` | `text-success` |
+| `--color-error` | `#ef4444` | `text-error` |
+
+Fonts: `--font-display` (Syne), `--font-mono` (JetBrains Mono).
+
+## Stack decisions (made, do not revisit)
+
+- **Router**: React Router (`createBrowserRouter` + `RouterProvider`)
+- **CSS**: Tailwind v4 via `@tailwindcss/vite` — no config file, tokens in `@theme`
+- **State**: `useState` + `useReducer` per page; no global store
+- **Backend**: Hono on Vercel + Neon Postgres, no accounts
+- **Hosting**: Vercel. Domain `quadra-mots.fr`
+- **PWA**: `vite-plugin-pwa`, `registerType: "autoUpdate"`
+- **Analytics**: Vercel Analytics — no cookie, so no consent banner
+- **No ads** for now: they would reintroduce the consent banner that removing
+  accounts just eliminated, for negligible revenue at current volume.
+
+## Testing
+
+Vitest, `environment: "node"`, covering `src/**/*.test.ts` and `server/**/*.test.ts`.
+A test needing `localStorage` opts into jsdom per file with `// @vitest-environment jsdom`
+on line 1.
+
+There is **no React testing library** — hooks and components are not unit-tested.
+Verification for those relies on `tsc`, the pure-module tests, and playing the game
+manually. Don't add a hook-level test framework casually; if you do, it's a decision
+to make deliberately, not a side effect of one task.
