@@ -6,11 +6,8 @@ import { normalizeWord } from "../engine/score";
 import { mainValidator, mainDictionary } from "../engine/mainDictionary";
 import { solveTopN, type SolverResult } from "../engine/solver";
 import { getDailyDraw } from "../engine/draw";
-import {
-  loadDailyState,
-  saveDailyState,
-  getTodayKey,
-} from "../services/dailyState";
+import { getTodayKey } from "../engine/dayKey";
+import { loadDailyState, saveDailyState } from "../services/dailyState";
 import type { AttemptRecord } from "../services/dailyState";
 import { submitScore } from "../services/api";
 

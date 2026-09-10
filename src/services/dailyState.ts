@@ -1,4 +1,5 @@
 import type { Draw } from "../engine/types";
+import { getTodayKey } from "../engine/dayKey";
 
 export type AttemptRecord = {
   rawWord: string;
@@ -19,15 +20,6 @@ export type DailyState = {
 };
 
 const STORAGE_KEY = "quadra:daily";
-
-/** Returns today's UTC date as "YYYY-MM-DD". */
-export function getTodayKey(): string {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(now.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 /**
  * Loads today's game state from localStorage.
