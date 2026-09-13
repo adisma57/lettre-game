@@ -1,27 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildShareText, drawSquares } from "./share";
-
-describe("drawSquares", () => {
-  it("marque les lettres utilisées", () => {
-    expect(drawSquares(["A", "B", "C", "D"], ["A", "C"])).toBe("🟧⬜🟧⬜");
-  });
-
-  it("aucune lettre utilisée", () => {
-    expect(drawSquares(["A", "B", "C", "D"], [])).toBe("⬜⬜⬜⬜");
-  });
-
-  it("toutes les lettres utilisées", () => {
-    expect(drawSquares(["A", "B", "C", "D"], ["A", "B", "C", "D"])).toBe("🟧🟧🟧🟧");
-  });
-
-  it("lettre en double : une seule occurrence utilisée en marque une seule", () => {
-    expect(drawSquares(["A", "A", "B", "C"], ["A", "B"])).toBe("🟧⬜🟧⬜");
-  });
-
-  it("lettre en double utilisée deux fois en marque deux", () => {
-    expect(drawSquares(["A", "A", "B", "C"], ["A", "A"])).toBe("🟧🟧⬜⬜");
-  });
-});
+import { buildShareText } from "./share";
 
 describe("buildShareText", () => {
   const base = {
@@ -29,15 +7,13 @@ describe("buildShareText", () => {
     score: 21,
     bestPossible: 24,
     draw: ["Q", "R", "T", "Z"],
-    usedLetters: ["Q", "R", "T"],
-    orderBonus: true,
     currentStreak: 7,
     percentile: 0.68,
   };
 
   it("format complet", () => {
     expect(buildShareText(base)).toBe(
-      "Quadra #142 — 21/24 🟧🟧🟧⬜ ✅\n" +
+      "Quadra #142 — 21/24\nLettres du jour : Q · R · T · Z\n" +
       "Série 7 🔥 · mieux que 68 % des joueurs\n" +
       "\nTu fais mieux avec les mêmes quatre lettres ?\n" +
       "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour\n" +
@@ -45,8 +21,8 @@ describe("buildShareText", () => {
     );
   });
 
-  it("sans bonus d'ordre → pas de coche", () => {
-    expect(buildShareText({ ...base, orderBonus: false })).toContain("🟧🟧🟧⬜\n");
+  it("conserve les lettres en double et leur ordre", () => {
+    expect(buildShareText({ ...base, draw: ["A", "A", "B", "C"] })).toContain("Lettres du jour : A · A · B · C");
   });
 
   it("sans percentile → la ligne se limite à la série", () => {
@@ -69,7 +45,7 @@ describe("buildShareText", () => {
 
   it("hors ligne : sans dénominateur ni percentile", () => {
     expect(buildShareText({ ...base, bestPossible: null, percentile: null })).toBe(
-      "Quadra #142 — 21 pts 🟧🟧🟧⬜ ✅\n" +
+      "Quadra #142 — 21 pts\nLettres du jour : Q · R · T · Z\n" +
       "Série 7 🔥\n" +
       "\nTu fais mieux avec les mêmes quatre lettres ?\n" +
       "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour\n" +
@@ -78,8 +54,8 @@ describe("buildShareText", () => {
   });
 
   it("score nul : rien trouvé", () => {
-    expect(buildShareText({ ...base, score: 0, usedLetters: [] })).toBe(
-      "Quadra #142 — 0/24 ⬜⬜⬜⬜ ✅\n" +
+    expect(buildShareText({ ...base, score: 0 })).toBe(
+      "Quadra #142 — 0/24\nLettres du jour : Q · R · T · Z\n" +
       "Série 7 🔥 · mieux que 68 % des joueurs\n" +
       "\nTu fais mieux avec les mêmes quatre lettres ?\n" +
       "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour\n" +

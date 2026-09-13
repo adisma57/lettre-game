@@ -1,5 +1,5 @@
 import { SITE_URL } from "../config";
-import { drawSquares, type ShareInput } from "./share";
+import type { ShareInput } from "./share";
 
 /** Render locally without uploading the result or player data. */
 export async function buildShareImage(input: ShareInput): Promise<File> {
@@ -26,14 +26,19 @@ export async function buildShareImage(input: ShareInput): Promise<File> {
   text("4 lettres · 3 essais · un défi chaque jour", 250, 31, "#c0b8ac");
   text(`DÉFI #${input.puzzleNumber}`, 336, 27, "#f97316", true);
   text(input.bestPossible === null ? `${input.score} pts` : `${input.score} / ${input.bestPossible}`, 455, 100, "#f2ede6", true);
-  // Same duplicate-aware, fixed four-square representation as the shared text.
-  Array.from(drawSquares(input.draw, input.usedLetters)).forEach((square, i) => {
-    ctx.fillStyle = square === "🟧" ? "#f97316" : "#eee8df";
+  // Show the public draw in its original order, independent of the result.
+  input.draw.forEach((letter, i) => {
+    ctx.fillStyle = "#eee8df";
     ctx.beginPath();
     ctx.roundRect(208 + i * 174, 510, 142, 142, 23);
     ctx.fill();
+    ctx.fillStyle = "#1d1a16";
+    ctx.font = "700 76px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(letter, 279 + i * 174, 581, 120);
+    ctx.textBaseline = "alphabetic";
   });
-  if (input.orderBonus) text("BONUS D’ORDRE DÉCROCHÉ", 699, 23, "#f97316", true);
   text(`Série en cours : ${input.currentStreak} jour${input.currentStreak === 1 ? "" : "s"}`, 778, 40, "#f2ede6", true);
   if (input.percentile !== null) text(`Mieux que ${Math.round(input.percentile * 100)} % des joueurs`, 824, 26, "#c0b8ac");
   text("Tu fais mieux avec les mêmes quatre lettres ?", 937, 32, "#f2ede6", true);

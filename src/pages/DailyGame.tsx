@@ -128,8 +128,6 @@ function EndOfGameFooter({
               score: bestAttempt.total,
               bestPossible: bestPossibleScore >= 0 ? bestPossibleScore : null,
               draw,
-              usedLetters: bestAttempt.score?.usedLetters ?? [],
-              orderBonus: bestAttempt.score?.orderBonus ?? false,
               currentStreak: loadStats().currentStreak,
               percentile,
             }}
