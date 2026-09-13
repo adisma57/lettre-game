@@ -123,7 +123,9 @@ the rules colour legend. It lives outside the component file so fast refresh wor
 
 ### Backend (`server/`)
 
-Hono on **Vercel + Neon serverless Postgres**, ESM. Entry point `api/[[...route]].ts`.
+Hono on **Vercel + Neon serverless Postgres**, ESM. Node.js entry point `api/index.ts`.
+`vercel.json` explicitly rewrites `/api/:path*` to `/api` so nested daily routes
+reach Hono. The solver dictionary exceeds the Hobby Edge bundle limit.
 `server/repo.ts` has two backends: Neon when `DATABASE_URL` is set, an in-memory
 store otherwise (local dev and tests).
 
