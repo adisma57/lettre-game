@@ -7,6 +7,7 @@ import { ScoreCard } from "../components/game/ScoreCard";
 import { ShareButton } from "../components/game/ShareButton";
 import { RulesModal } from "../components/modals/RulesModal";
 import { StatsModal } from "../components/modals/StatsModal";
+import { StatsPanel } from "../components/game/StatsPanel";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { scoreWord } from "../engine/score";
@@ -111,6 +112,13 @@ function EndOfGameFooter({
   return (
     <div className="mt-4">
       <RankLine percentile={percentile} playersToday={playersToday} />
+
+      <section className="mt-6" aria-labelledby="end-game-stats-title">
+        <h2 id="end-game-stats-title" className="mb-4 text-sm font-semibold text-fg">
+          Mes statistiques
+        </h2>
+        <StatsPanel />
+      </section>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {bestAttempt && (
