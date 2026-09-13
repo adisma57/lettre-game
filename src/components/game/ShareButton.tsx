@@ -74,9 +74,47 @@ function SharePreview({ input, onClose }: { input: ShareInput; onClose: () => vo
 
 export function ShareButton({ input }: { input: ShareInput }) {
   const [snapshot, setSnapshot] = useState<ShareInput | null>(null);
+  const [prepared, setPrepared] = useState<{ key: string; file: File | null } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  // Stats may arrive after the result: only share an image matching this input.
+  const key = JSON.stringify(input);
+  useEffect(() => {
+    let active = true;
+    buildShareImage(JSON.parse(key) as ShareInput).then((file) => {
+      if (active) setPrepared({ key, file });
+    }).catch(() => {
+      if (active) setPrepared({ key, file: null });
+    });
+    return () => { active = false; };
+  }, [key]);
+
+  async function shareDirectly() {
+    if (sharing || prepared?.key !== key) return;
+    const file = prepared.file;
+    const data = file ? { files: [file], text: buildShareText(input) } : null;
+    if (!data || typeof navigator.share !== "function" ||
+      typeof navigator.canShare !== "function" || !navigator.canShare(data)) {
+      setSnapshot(input);
+      return;
+    }
+    setSharing(true);
+    try {
+      // No await before share: the prepared PNG preserves the click activation.
+      await navigator.share(data);
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === "AbortError")) {
+        setSnapshot(input);
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
+
   return (
     <>
-      <Button variant="secondary" onClick={() => setSnapshot(input)}>Partager</Button>
+      <Button variant="secondary" disabled={sharing || prepared?.key !== key} onClick={() => void shareDirectly()}>
+        {prepared?.key !== key ? "Préparation du partage…" : sharing ? "Partage…" : "Partager"}
+      </Button>
       {snapshot && <SharePreview input={snapshot} onClose={() => setSnapshot(null)} />}
     </>
   );
