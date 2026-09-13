@@ -1,8 +1,8 @@
-import type { Draw, ScoreResult, WordValidator } from "./types";
-import { generateDrawWeighted } from "./draw";
-import { scoreWord, normalizeWord } from "./score";
+import type { Draw, ScoreResult, WordValidator } from "./types.js";
+import { generateDrawWeighted } from "./draw.js";
+import { scoreWord, normalizeWord } from "./score.js";
 
-export type { WordValidator } from "./types"; // re-export for callers that import from here
+export type { WordValidator } from "./types.js"; // re-export for callers that import from here
 
 export type InvalidReason = "empty" | "not_in_dictionary";
 

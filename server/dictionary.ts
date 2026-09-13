@@ -1,12 +1,7 @@
 // Same source files as src/engine/mainDictionary.ts (LEFFF + Dicollecte supplement).
-// Plain default JSON imports are used here for consistency with mainDictionary.ts —
-// verified to type-check under `tsc -b` (tsconfig.node.json resolves
-// resolveJsonModule: true via "moduleResolution": "bundler") and to run correctly
-// under both `tsx` and Vitest, which is the only way these files are ever loaded
-// (the server is never emitted to plain JS; `npm run server` and tests both go
-// through tsx/Vitest's transform, never native Node ESM on the raw .ts files).
-import lefff from "../src/engine/data/lefff-words.json";
-import supplement from "../src/engine/data/supplement-words.json";
+// Import attributes also support native Node ESM in the Vercel function.
+import lefff from "../src/engine/data/lefff-words.json" with { type: "json" };
+import supplement from "../src/engine/data/supplement-words.json" with { type: "json" };
 import { createSetDictionary, type Dictionary } from "../src/engine/DictionaryService.js";
 
 /**

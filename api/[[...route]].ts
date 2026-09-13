@@ -1,5 +1,5 @@
-import { handle } from "hono/vercel";
 import { app } from "../server/app.js";
 
-export const config = { runtime: "edge" };
-export default handle(app);
+// The server-side dictionary exceeds the Edge bundle limit. Use Node.js and
+// Vercel's Web Standard handler so Hono still receives a native Request.
+export default { fetch: app.fetch };

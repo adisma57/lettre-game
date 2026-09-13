@@ -1,4 +1,4 @@
-import type { Draw, ScoreResult, ScorePart } from "./types";
+import type { Draw, ScoreResult, ScorePart } from "./types.js";
 
 /** Converts to uppercase and strips all diacritics (é→E, ç→C, etc.). */
 export function normalizeWord(raw: string): string {

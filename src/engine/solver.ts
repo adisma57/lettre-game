@@ -1,6 +1,6 @@
-import { scoreWord } from "./score";
-import type { Draw, ScoreResult } from "./types";
-import type { Dictionary } from "./DictionaryService";
+import { scoreWord } from "./score.js";
+import type { Draw, ScoreResult } from "./types.js";
+import type { Dictionary } from "./DictionaryService.js";
 
 export type SolverResult = {
   word: string;

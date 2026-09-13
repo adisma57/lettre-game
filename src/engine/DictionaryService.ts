@@ -1,5 +1,5 @@
-import { normalizeWord } from "./score";
-import type { WordValidator } from "./types";
+import { normalizeWord } from "./score.js";
+import type { WordValidator } from "./types.js";
 
 export interface Dictionary {
   /** Returns true if `word` belongs to the dictionary (case- and accent-insensitive). */

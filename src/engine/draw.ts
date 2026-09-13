@@ -1,5 +1,5 @@
-import type { Draw } from "./types";
-import { getTodayKey } from "./dayKey";
+import type { Draw } from "./types.js";
+import { getTodayKey } from "./dayKey.js";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 

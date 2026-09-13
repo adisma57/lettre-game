@@ -1,4 +1,4 @@
-import { EPOCH } from "../config";
+import { EPOCH } from "../config.js";
 
 const TIME_ZONE = "Europe/Paris";
 
