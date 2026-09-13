@@ -39,13 +39,15 @@ npm run dev:en
 - Neon production branch remains empty: `br-young-darkness-b2l74w28`.
 - No custom English domain has been selected; none has been purchased or connected.
 
-The secret EN_DATABASE_URL still needs to be transferred from this Neon preview branch to the Vercel EN Preview environment. Automatic approval review blocked this transfer pending explicit user authorization. No secret is committed.
+On 13 September 2026, after explicit user authorization, EN_DATABASE_URL was saved as a sensitive Preview variable in this Vercel project, pointing to the Neon english-preview branch. No secret is committed.
+
+Verified preview: https://quadra-dqk2mw7dk-adisma57s-projects.vercel.app (deployment dpl_GBr1VFtqBd4P8JhtGLkTKAPfxCjj, target Preview). Vercel authentication protects access. The initial deployment that Vercel defaulted to Production on this new project was removed; always specify the Preview target explicitly.
 
 Git auto-deployment is disabled specifically for `feat/english-version` in vercel.json so pushing this experimental branch cannot create an unintended preview in the existing French project. Preview deployment is manual from a checkout linked to `quadra-en`:
 
 ```powershell
 npx vercel link --project quadra-en --scope adisma57s-projects
-npx vercel deploy --scope adisma57s-projects
+npx vercel deploy --target=preview --scope adisma57s-projects
 ```
 
 Do not use `--prod` during this preparation. Before a later English production launch, configure its own EN_DATABASE_URL and VITE_SITE_URL and confirm the release separately.
@@ -56,5 +58,6 @@ Do not use `--prod` during this preparation. Before a later English production l
 - English tests cover dictionary parity, UK/US forms, rare-letter weighting, deterministic draws, scoring examples, storage namespace, caption URL and an English API attempt/finish flow.
 - Browser local check: English daily draw → valid English attempt → reveal answer → saved English statistics → English practice page; no reported browser errors.
 - Local browser checks use in-memory server data, not the Neon production database.
+- Live Preview check: health reports English; a browser attempt and answer reveal both return HTTP 200; score 5 is persisted in the dedicated Neon preview branch. Results and statistics render without browser errors. The synthetic player's row was removed after verification.
 
 The large English list includes uncommon words. This first version is intended for playtesting before deciding whether to narrow the dictionary. Dictionary/weight changes after launch can change solutions; finalize them before publishing permanent daily challenges.
