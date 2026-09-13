@@ -34,6 +34,8 @@ function SharePreview({ input, onClose }: { input: ShareInput; onClose: () => vo
     if (!image || sharing) return;
     setSharing(true);
     setStatus("");
+    // Start copying during the click, without delaying native sharing.
+    void copy();
     try {
       // Prepare the PNG before this click to preserve user activation.
       await navigator.share({ files: [image.file], text });
@@ -76,6 +78,7 @@ export function ShareButton({ input }: { input: ShareInput }) {
   const [snapshot, setSnapshot] = useState<ShareInput | null>(null);
   const [prepared, setPrepared] = useState<{ key: string; file: File | null } | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
   // Stats may arrive after the result: only share an image matching this input.
   const key = JSON.stringify(input);
   useEffect(() => {
@@ -90,8 +93,19 @@ export function ShareButton({ input }: { input: ShareInput }) {
 
   async function shareDirectly() {
     if (sharing || prepared?.key !== key) return;
+    const text = buildShareText(input);
+    setCopyStatus("");
+    // Do not await clipboard access: share() also needs this click activation.
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopyStatus("Texte et hashtags copiés, prêts à coller !");
+      } catch {
+        setCopyStatus("Copie automatique refusée par le navigateur.");
+      }
+    })();
     const file = prepared.file;
-    const data = file ? { files: [file], text: buildShareText(input) } : null;
+    const data = file ? { files: [file], text } : null;
     if (!data || typeof navigator.share !== "function" ||
       typeof navigator.canShare !== "function" || !navigator.canShare(data)) {
       setSnapshot(input);
@@ -115,6 +129,7 @@ export function ShareButton({ input }: { input: ShareInput }) {
       <Button variant="secondary" disabled={sharing || prepared?.key !== key} onClick={() => void shareDirectly()}>
         {prepared?.key !== key ? "Préparation du partage…" : sharing ? "Partage…" : "Partager"}
       </Button>
+      {copyStatus && <p role="status" className="mt-2 text-sm text-fg-sub">{copyStatus}</p>}
       {snapshot && <SharePreview input={snapshot} onClose={() => setSnapshot(null)} />}
     </>
   );
