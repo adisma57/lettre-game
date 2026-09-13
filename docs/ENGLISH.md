@@ -1,6 +1,6 @@
 # Quadra EN — dedicated deployment
 
-Work remains on `feat/english-version`. Do not merge it into `main` or promote a preview without a separate release decision.
+Work remains on `feat/english-version`. Do not merge it into `main`. The English Vercel project now tracks this branch as Production, but production builds remain temporarily blocked pending authorization to configure the production database credential.
 
 ## What is implemented
 
@@ -43,14 +43,22 @@ On 13 September 2026, after explicit user authorization, EN_DATABASE_URL was sav
 
 Verified preview: https://quadra-dqk2mw7dk-adisma57s-projects.vercel.app (deployment dpl_GBr1VFtqBd4P8JhtGLkTKAPfxCjj, target Preview). Vercel authentication protects access. The initial deployment that Vercel defaulted to Production on this new project was removed; always specify the Preview target explicitly.
 
-Git auto-deployment is disabled specifically for `feat/english-version` in vercel.json so pushing this experimental branch cannot create an unintended preview in the existing French project. Preview deployment is manual from a checkout linked to `quadra-en`:
+Both projects connect to `adisma57/lettre-game`. Branch filtering is configured separately in each Vercel project's Ignored Build Step (not in shared vercel.json):
+
+- `quadra`: production branch `main`; ignores `feat/english-version` and `en/*`.
+- `quadra-en`: production branch `feat/english-version`; accepts this branch and `en/*`, ignores all others. Production builds are temporarily ignored until the production Neon credential transfer is explicitly authorized.
+- Use `en/<change>` for English feature previews. Merge tested English changes into `feat/english-version`, never `main`. Other feature branches belong to French previews and merge into `main`.
+- French `DATABASE_URL` is now scoped separately: Production uses the existing production connection, all Previews use the former `refonte-jeu-quotidien` test connection. No production credential is needed for local development; local tests use memory.
+- English Preview uses `english-preview`; the existing separate English `production` Neon branch is ready, but its connection is not yet stored in Vercel. GAME_LANGUAGE and VITE_GAME_LANGUAGE are set to `en` in both Preview and Production.
+
+To deploy an English preview manually from a checkout linked to `quadra-en`:
 
 ```powershell
 npx vercel link --project quadra-en --scope adisma57s-projects
 npx vercel deploy --target=preview --scope adisma57s-projects
 ```
 
-Do not use `--prod` during this preparation. Before a later English production launch, configure its own EN_DATABASE_URL and VITE_SITE_URL and confirm the release separately.
+Do not use `--prod` until its dedicated EN_DATABASE_URL is configured. The production credential transfer was rejected by automatic approval review because the previous user authorization covered only Preview. After authorization, add that secret, remove only the temporary production condition from the English Ignored Build Step, and verify a deployment. Set VITE_SITE_URL when the permanent English domain is chosen. Do not reuse the Preview database for production.
 
 ## Validation
 

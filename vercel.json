@@ -11,10 +11,5 @@
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
-  ],
-  "git": {
-    "deploymentEnabled": {
-      "feat/english-version": false
-    }
-  }
+  ]
 }
