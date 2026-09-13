@@ -84,27 +84,17 @@
     {
       "id": "modes",
       "title": "Modes de jeu",
-      "body": "L'application propose quatre modes :",
+      "body": "L'application propose deux modes :",
       "modes": [
         {
           "name": "Défi du jour",
-          "route": "/daily",
+          "route": "/",
           "description": "Un tirage identique pour tous les joueurs, renouvelé chaque jour à minuit UTC. Vous disposez de 3 essais. Après chaque essai, le meilleur score possible est révélé — mais pas le mot. Revenez chaque jour pour progresser."
         },
         {
           "name": "Entraînement",
-          "route": "/training",
+          "route": "/entrainement",
           "description": "Tirages aléatoires en boucle, sans limite. Après chaque essai, le top 3 des meilleurs mots possibles est révélé. Idéal pour explorer les stratégies et progresser librement."
-        },
-        {
-          "name": "Solveur",
-          "route": "/solver",
-          "description": "Entrez n'importe quel tirage pour obtenir immédiatement les 10 meilleurs mots possibles, classés par score puis par longueur de mot."
-        },
-        {
-          "name": "Classement",
-          "route": "/leaderboard",
-          "description": "Consultez le classement des joueurs basé sur les scores du défi du jour. Triez par score moyen, nombre de parties jouées ou ancienneté du compte."
         }
       ]
     }

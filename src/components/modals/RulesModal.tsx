@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import rulesData from "../content/rules.json";
-import { Card } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-import { DrawDisplay } from "../components/game/DrawDisplay";
-import { ROLE_CLASS_BY_STRING as ROLE_CLASS } from "../components/game/ColoredWord";
+import rulesData from "../../content/rules.json";
+import { Card } from "../ui/Card";
+import { Badge } from "../ui/Badge";
+import { Modal } from "../ui/Modal";
+import { DrawDisplay } from "../game/DrawDisplay";
+import { ROLE_CLASS } from "../game/letterRoles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ function ColorLegend({ colors }: { colors: ColorEntry[] }) {
         return (
           <li key={entry.role} className="flex items-center gap-3 text-sm">
             {/* Sample letter showing the actual visual */}
-            <span className={`relative inline-block w-6 shrink-0 text-center font-mono text-base font-bold ${ROLE_CLASS[entry.role] ?? "text-fg"}`}>
+            <span className={`relative inline-block w-6 shrink-0 text-center font-mono text-base font-bold ${ROLE_CLASS[entry.role as keyof typeof ROLE_CLASS] ?? "text-fg"}`}>
               A
               {isSkeleton && (
                 <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-current opacity-80" />
@@ -139,16 +140,14 @@ function GameModes({ modes }: { modes: GameMode[] }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Modal ────────────────────────────────────────────────────────────────────
 
 const rules = rulesData as RulesConfig;
 
-export default function Rules() {
+export function RulesModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold text-fg">{rules.title}</h1>
-
-      <div className="mt-8 flex flex-col gap-6">
+    <Modal title="Règles" onClose={onClose}>
+      <div className="flex flex-col gap-6">
         {rules.sections.map((section) => (
           <Card key={section.id}>
             <h2 className="text-lg font-semibold text-fg">{section.title}</h2>
@@ -162,6 +161,6 @@ export default function Rules() {
           </Card>
         ))}
       </div>
-    </div>
+    </Modal>
   );
 }

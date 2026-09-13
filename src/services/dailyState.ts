@@ -1,33 +1,30 @@
-import type { Draw } from "../engine/types";
+import type { Draw, ScoreResult } from "../engine/types";
+import type { SolverResult } from "../engine/solver";
+import { getTodayKey } from "../engine/dayKey";
 
 export type AttemptRecord = {
   rawWord: string;
   normalizedWord: string;
   total: number;
+  score: ScoreResult | null;   // required by buildShareText
 };
 
 export type DailyState = {
-  _v: 1;                        // schema version — bump on breaking changes
-  date: string;                 // "YYYY-MM-DD" UTC
+  _v: 2;                        // 2: deviceId, percentile, no more username
+  date: string;                 // "YYYY-MM-DD" (Europe/Paris)
   draw: Draw;
   attempts: AttemptRecord[];    // max 3 entries
-  bestPossibleScore: number;    // -1 until first submit
-  bestWord: string | null;      // null until first submit
+  bestPossibleScore: number;    // -1 until the server answers
+  bestWord: string | null;
+  topWords: SolverResult[];
   completed: boolean;
-  revealed?: boolean;           // true if player clicked "Voir les réponses" mid-game
-  submittedAttempts?: number[]; // attempt_num values confirmed by the backend
+  revealed: boolean;
+  percentile: number | null;
+  playersToday: number;
+  statsApplied: boolean;        // stops one game being counted twice
 };
 
 const STORAGE_KEY = "quadra:daily";
-
-/** Returns today's UTC date as "YYYY-MM-DD". */
-export function getTodayKey(): string {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(now.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 /**
  * Loads today's game state from localStorage.
@@ -39,7 +36,7 @@ export function loadDailyState(): DailyState | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DailyState>;
-    if (parsed._v !== 1) return null;
+    if (parsed._v !== 2) return null;
     if (parsed.date !== getTodayKey()) return null;
     return parsed as DailyState;
   } catch {
@@ -57,12 +54,17 @@ export function saveDailyState(state: DailyState): void {
 
 export function createFreshState(date: string, draw: Draw): DailyState {
   return {
-    _v: 1,
+    _v: 2,
     date,
     draw,
     attempts: [],
     bestPossibleScore: -1,
     bestWord: null,
+    topWords: [],
     completed: false,
+    revealed: false,
+    percentile: null,
+    playersToday: 0,
+    statsApplied: false,
   };
 }

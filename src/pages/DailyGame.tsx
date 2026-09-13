@@ -1,13 +1,19 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useDailyGame } from "../hooks/useDailyGame";
-import { useAuth } from "../hooks/useAuth";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
 import { ScoreCard } from "../components/game/ScoreCard";
+import { ShareButton } from "../components/game/ShareButton";
+import { RulesModal } from "../components/modals/RulesModal";
+import { StatsModal } from "../components/modals/StatsModal";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { scoreWord } from "../engine/score";
+import { getTodayKey, puzzleNumber } from "../engine/dayKey";
+import { loadStats } from "../services/stats";
 import type { SolverResult } from "../engine/solver";
+import type { AttemptRecord } from "../services/dailyState";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -22,6 +28,23 @@ function formatUTC(date: Date): string {
 function tomorrow(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+}
+
+// ─── Players / percentile line ────────────────────────────────────────────────
+
+function playersLabel(playersToday: number): string {
+  if (playersToday === 0) return "Vous êtes le premier à jouer aujourd'hui";
+  return `${playersToday} joueur${playersToday > 1 ? "s" : ""} aujourd'hui`;
+}
+
+function RankLine({ percentile, playersToday }: { percentile: number | null; playersToday: number }) {
+  return (
+    <p className="mt-1 text-sm text-muted">
+      {percentile !== null
+        ? `Mieux que ${Math.round(percentile * 100)} % des joueurs aujourd'hui`
+        : playersLabel(playersToday)}
+    </p>
+  );
 }
 
 // ─── Top words list ───────────────────────────────────────────────────────────
@@ -70,27 +93,95 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
   );
 }
 
+// ─── End-of-game footer (percentile/players + share + training link) ─────────
+
+function EndOfGameFooter({
+  attempts, bestPossibleScore, percentile, playersToday, draw,
+}: {
+  attempts: AttemptRecord[];
+  bestPossibleScore: number;
+  percentile: number | null;
+  playersToday: number;
+  draw: string[];
+}) {
+  const bestAttempt = attempts.length
+    ? attempts.reduce((a, b) => (b.total > a.total ? b : a))
+    : null;
+
+  return (
+    <div className="mt-4">
+      <RankLine percentile={percentile} playersToday={playersToday} />
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {bestAttempt && (
+          <ShareButton
+            input={{
+              puzzleNumber: puzzleNumber(getTodayKey()),
+              score: bestAttempt.total,
+              bestPossible: bestPossibleScore >= 0 ? bestPossibleScore : null,
+              draw,
+              usedLetters: bestAttempt.score?.usedLetters ?? [],
+              orderBonus: bestAttempt.score?.orderBonus ?? false,
+              currentStreak: loadStats().currentStreak,
+              percentile,
+            }}
+          />
+        )}
+        <Link
+          to="/entrainement"
+          className="text-sm font-medium text-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
+        >
+          S'entraîner →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DailyGame() {
-  const { auth } = useAuth();
-  const username = auth.status === "authenticated" ? auth.username : null;
-
   const {
     draw, phase, attempts,
-    bestPossibleScore, bestWord, topWords,
+    bestPossibleScore, bestWord, topWords, percentile, playersToday,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, revealAnswers, currentAttemptResult,
-  } = useDailyGame(username);
+    dictReady,
+  } = useDailyGame();
+
+  const [modal, setModal] = useState<"rules" | "stats" | null>(null);
 
   return (
     <div className="mx-auto max-w-lg">
 
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-primary">Défi du jour</h1>
-        <span className="text-sm text-muted">{formatUTC(new Date())}</span>
+        <button
+          type="button"
+          onClick={() => setModal("rules")}
+          aria-label="Voir les règles du jeu"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-elevated text-base font-bold text-muted transition-colors hover:border-primary/50 hover:text-fg"
+        >
+          ?
+        </button>
+
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-primary">Défi du jour</h1>
+          <span className="text-xs text-muted">{formatUTC(new Date())}</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setModal("stats")}
+          aria-label="Voir mes statistiques"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-elevated text-base text-muted transition-colors hover:border-primary/50 hover:text-fg"
+        >
+          📊
+        </button>
       </div>
+
+      {modal === "rules" && <RulesModal onClose={() => setModal(null)} />}
+      {modal === "stats" && <StatsModal onClose={() => setModal(null)} />}
 
       {/* Draw tiles */}
       <DrawDisplay letters={draw} className="mb-8" />
@@ -103,12 +194,16 @@ export default function DailyGame() {
             onChange={setInputWord}
             onSubmit={submitWord}
             isValid={isInputValid}
+            disabled={!dictReady}
             error={
               currentAttemptResult?.invalidReason === "not_in_dictionary"
                 ? "Mot non reconnu dans le dictionnaire."
                 : undefined
             }
           />
+          {!dictReady && (
+            <p className="mt-2 text-sm text-muted">Chargement du dictionnaire…</p>
+          )}
         </div>
       )}
 
@@ -163,6 +258,14 @@ export default function DailyGame() {
             Revenez demain — {formatUTC(tomorrow())}
           </p>
 
+          <EndOfGameFooter
+            attempts={attempts}
+            bestPossibleScore={bestPossibleScore}
+            percentile={percentile}
+            playersToday={playersToday}
+            draw={draw}
+          />
+
           {topWords.length > 0 && <TopWordsList words={topWords} />}
         </Card>
       )}
@@ -185,6 +288,14 @@ export default function DailyGame() {
           <p className="text-sm text-muted">
             Revenez demain — {formatUTC(tomorrow())}
           </p>
+
+          <EndOfGameFooter
+            attempts={attempts}
+            bestPossibleScore={bestPossibleScore}
+            percentile={percentile}
+            playersToday={playersToday}
+            draw={draw}
+          />
 
           {topWords.length > 0 && <TopWordsList words={topWords} />}
         </Card>

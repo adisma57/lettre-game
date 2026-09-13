@@ -1,15 +1,12 @@
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
-import {
-  ensureSchema,
-  findUserIdByUsername,
-  getLeaderboard,
-  insertAttempt,
-  insertUser,
-  upsertDailyPuzzle,
-  usernameExists,
-} from "./repo.js";
+import { ensureSchema, insertPlay, getDailyPercentile } from "./repo.js";
+import { resolveBestPossible, resolveAnswers } from "./daily.js";
+import { getTodayKey } from "../src/engine/dayKey.js";
+import { createDraw } from "../src/engine/RoundService.js";
+import { solveTopN } from "../src/engine/solver.js";
+import { solverDictionary } from "./dictionary.js";
 
 const app = new Hono().basePath("/api");
 
@@ -31,110 +28,76 @@ app.use(
   "*",
   cors({
     origin: corsOrigins(),
-    allowHeaders: ["Content-Type", "X-Username"],
+    allowHeaders: ["Content-Type"],
   }),
 );
 
 let schemaReady: Promise<void> | undefined;
-/** Ne pas passer par un middleware global : sur Vercel le pathname peut ne pas être `/api/health`. */
+/** Not a global middleware: on Vercel the pathname may not be `/api/health`. */
 const withDb: MiddlewareHandler = async (_c, next) => {
   schemaReady ??= ensureSchema();
   await schemaReady;
   await next();
 };
 
-app.get("/health", (c) =>
-  c.json({ ok: true, t: new Date().toISOString() }),
-);
+app.get("/health", (c) => c.json({ ok: true, t: new Date().toISOString() }));
 
 app.onError((err, c) => {
   console.error("[server error]", err);
   return c.json({ error: "Erreur serveur." }, 500);
 });
 
-// ─── POST /api/users ──────────────────────────────────────────────────────────
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 
-app.post("/users", withDb, async (c) => {
-  const body = (await c.req
-    .json()
-    .catch(() => ({}))) as { username?: string };
-  const username = (body.username ?? "").trim();
+/** Rejects a malformed date, or one later than the current Paris day. */
+function invalidDate(date: string): boolean {
+  return !DATE_RE.test(date) || date > getTodayKey();
+}
 
-  if (!username || username.length < 2 || username.length > 20) {
-    return c.json({ error: "Le pseudo doit faire entre 2 et 20 caractères." }, 400);
-  }
-  if (!/^[A-Za-z0-9_-]+$/.test(username)) {
-    return c.json({ error: "Caractères autorisés : lettres, chiffres, _ et -." }, 400);
-  }
+app.post("/daily/:date/attempt", withDb, async (c) => {
+  const date = c.req.param("date");
+  if (invalidDate(date)) return c.json({ error: "Date invalide." }, 400);
 
-  const result = await insertUser(username);
-  if (!result.ok) {
-    return c.json({ error: "Ce pseudo est déjà pris." }, 409);
-  }
-  return c.json({ username }, 201);
-});
-
-// ─── POST /api/scores ────────────────────────────────────────────────────────
-
-app.post("/scores", withDb, async (c) => {
-  const username = c.req.header("X-Username")?.trim();
-  if (!username) return c.json({ error: "En-tête X-Username manquant." }, 401);
-
-  const userId = await findUserIdByUsername(username);
-  if (userId == null) return c.json({ error: "Utilisateur inconnu." }, 404);
-
-  const body = (await c.req
-    .json()
-    .catch(() => ({}))) as {
-    date?: string;
-    attempt_num?: number;
+  const body = (await c.req.json().catch(() => ({}))) as {
+    deviceId?: string;
+    attemptNum?: number;
     score?: number;
-    best_possible?: number;
   };
 
-  const { date, attempt_num, score, best_possible } = body;
-  if (
-    typeof date !== "string" ||
-    typeof attempt_num !== "number" ||
-    typeof score !== "number" ||
-    typeof best_possible !== "number"
-  ) {
-    return c.json({ error: "Champs requis : date, attempt_num, score, best_possible." }, 400);
+  if (typeof body.deviceId !== "string" || !UUID_RE.test(body.deviceId)) {
+    return c.json({ error: "Identifiant d'appareil invalide." }, 400);
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return c.json({ error: "Format de date invalide (YYYY-MM-DD attendu)." }, 400);
+  if (typeof body.attemptNum !== "number" || body.attemptNum < 1 || body.attemptNum > 3) {
+    return c.json({ error: "Numéro d'essai hors limites." }, 400);
   }
-  if (score < 0 || best_possible < 0 || attempt_num < 1 || attempt_num > 3) {
-    return c.json({ error: "Valeurs hors limites." }, 400);
+  if (typeof body.score !== "number" || body.score < 0) {
+    return c.json({ error: "Score invalide." }, 400);
   }
 
-  await upsertDailyPuzzle(date, best_possible);
-  await insertAttempt(userId, date, attempt_num, score, best_possible);
+  const bestPossible = await resolveBestPossible(date);
+  await insertPlay(body.deviceId, date, body.attemptNum, body.score);
 
-  return c.json({ ok: true });
+  return c.json({ bestPossible });
 });
 
-// ─── GET /api/leaderboard ─────────────────────────────────────────────────────
+app.post("/daily/:date/finish", withDb, async (c) => {
+  const date = c.req.param("date");
+  if (invalidDate(date)) return c.json({ error: "Date invalide." }, 400);
 
-type SortKey = "weekly" | "monthly" | "global";
+  const body = (await c.req.json().catch(() => ({}))) as { score?: number };
+  const score = typeof body.score === "number" && body.score >= 0 ? body.score : 0;
 
-app.get("/leaderboard", withDb, async (c) => {
-  const sortParam = (c.req.query("sort") ?? "weekly") as SortKey;
-  const sort: SortKey =
-    sortParam === "monthly" || sortParam === "global"
-      ? sortParam
-      : "weekly";
+  const { bestWord, topWords } = await resolveAnswers(date);
+  const { percentile, playersToday } = await getDailyPercentile(date, score);
 
-  const ranked = await getLeaderboard(sort);
-  return c.json(ranked);
+  return c.json({ bestWord, topWords, percentile, playersToday });
 });
 
-// ─── GET /api/users/:name/exists ─────────────────────────────────────────────
-
-app.get("/users/:name/exists", withDb, async (c) => {
-  const name = c.req.param("name");
-  const exists = await usernameExists(name);
-  return c.json({ exists });
+app.get("/training", async (c) => {
+  const draw = createDraw();
+  const top3 = solveTopN(draw, solverDictionary, 3);
+  return c.json({ draw, top3 });
 });
 
 export { app };
