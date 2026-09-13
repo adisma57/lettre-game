@@ -1,3 +1,4 @@
+import { t } from "../../language";
 import { useEffect, type ReactNode } from "react";
 
 type ModalProps = {
@@ -31,7 +32,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
           <h2 className="font-bold text-fg text-xl">{title}</h2>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("Fermer", "Close")}
             className="text-muted hover:text-fg text-2xl leading-none"
           >
             ×

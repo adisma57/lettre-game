@@ -1,3 +1,4 @@
+import { t } from "../language";
 import { useNavigate } from "react-router-dom";
 import { useTraining } from "../hooks/useTraining";
 import { DrawDisplay } from "../components/game/DrawDisplay";
@@ -10,7 +11,7 @@ export default function Training() {
   const navigate = useNavigate();
   const backButton = (
     <Button variant="secondary" className="mb-6" onClick={() => navigate("/")}>
-      ← Retour au défi du jour
+      {t("← Retour au défi du jour", "← Back to daily challenge")}
     </Button>
   );
   const {
@@ -25,7 +26,7 @@ export default function Training() {
     return (
       <div className="mx-auto max-w-lg">
         {backButton}
-        <p className="text-center text-muted">Chargement du tirage…</p>
+        <p className="text-center text-muted">{t("Chargement du tirage…", "Loading letters…")}</p>
       </div>
     );
   }
@@ -36,8 +37,8 @@ export default function Training() {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-primary">Entraînement</h1>
-        <p className="mt-1 text-sm text-muted">Tirages aléatoires en boucle. Aucune limite.</p>
+        <h1 className="text-2xl font-bold text-primary">{t("Entraînement", "Practice")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("Tirages aléatoires en boucle. Aucune limite.", "Random letters. Unlimited practice.")}</p>
       </div>
 
       {/* Draw tiles */}
@@ -54,12 +55,12 @@ export default function Training() {
             disabled={!dictReady}
             error={
               currentResult?.invalidReason === "not_in_dictionary"
-                ? "Mot non reconnu dans le dictionnaire."
+                ? t("Mot non reconnu dans le dictionnaire.", "Word not found in the dictionary.")
                 : undefined
             }
           />
           {!dictReady && (
-            <p className="mt-2 text-sm text-muted">Chargement du dictionnaire…</p>
+            <p className="mt-2 text-sm text-muted">{t("Chargement du dictionnaire…", "Loading dictionary…")}</p>
           )}
         </div>
       )}
@@ -68,7 +69,7 @@ export default function Training() {
       {phase.kind === "results" && currentResult?.score && (
         <div className="mb-6">
           <ScoreCard
-            label="Votre mot"
+            label={t("Votre mot", "Your word")}
             score={currentResult.score}
             total={currentResult.total}
             bestPossibleScore={bestPossibleScore >= 0 ? bestPossibleScore : undefined}
@@ -77,8 +78,8 @@ export default function Training() {
           <SolverResultsList results={top3} />
 
           <div className="mt-6 flex gap-3">
-            <Button variant="secondary" onClick={retryRound}>Retenter</Button>
-            <Button onClick={nextRound}>Prochain tirage →</Button>
+            <Button variant="secondary" onClick={retryRound}>{t("Retenter", "Try again")}</Button>
+            <Button onClick={nextRound}>{t("Prochain tirage →", "Next draw →")}</Button>
           </div>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { t } from "../language";
 import { SITE_URL } from "../config";
 import type { Draw } from "../engine/types";
 
@@ -16,19 +17,19 @@ export function buildShareText(input: ShareInput): string {
       ? `${input.score} pts`
       : `${input.score}/${input.bestPossible}`;
 
-  const streak = `Série ${input.currentStreak} 🔥`;
+  const streak = t(`Série ${input.currentStreak} 🔥`, `${input.currentStreak}-day streak 🔥`);
   const rank =
     input.percentile === null
       ? ""
-      : ` · mieux que ${Math.round(input.percentile * 100)} % des joueurs`;
+      : t(` · mieux que ${Math.round(input.percentile * 100)} % des joueurs`, ` · better than ${Math.round(input.percentile * 100)}% of players`);
 
   return [
     `Quadra #${input.puzzleNumber} — ${scoreLabel}`,
-    `Lettres du jour : ${input.draw.join(" · ")}`,
+    t(`Lettres du jour : ${input.draw.join(" · ")}`, `Today’s letters: ${input.draw.join(" · ")}`),
     `${streak}${rank}`,
     "",
-    "Tu fais mieux avec les mêmes quatre lettres ?",
-    "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour",
+    t("Tu fais mieux avec les mêmes quatre lettres ?", "Same four letters. Can you beat my score?"),
+    t("#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour", "#Quadra #WordGames #DailyPuzzle #WordChallenge #BrainTeaser"),
     SITE_URL,
   ].join("\n");
 }

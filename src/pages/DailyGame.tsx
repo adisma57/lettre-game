@@ -1,3 +1,4 @@
+import { t, DATE_LOCALE, IS_ENGLISH } from "../language";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDailyGame } from "../hooks/useDailyGame";
@@ -18,7 +19,7 @@ import type { AttemptRecord } from "../services/dailyState";
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
-const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+const dateFmt = new Intl.DateTimeFormat(DATE_LOCALE, {
   day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
 });
 
@@ -34,15 +35,15 @@ function tomorrow(): Date {
 // ─── Players / percentile line ────────────────────────────────────────────────
 
 function playersLabel(playersToday: number): string {
-  if (playersToday === 0) return "Vous êtes le premier à jouer aujourd'hui";
-  return `${playersToday} joueur${playersToday > 1 ? "s" : ""} aujourd'hui`;
+  if (playersToday === 0) return t("Vous êtes le premier à jouer aujourd'hui", "You are the first to play today");
+  return t(`${playersToday} joueur${playersToday > 1 ? "s" : ""} aujourd'hui`, `${playersToday} player${playersToday === 1 ? "" : "s"} today`);
 }
 
 function RankLine({ percentile, playersToday }: { percentile: number | null; playersToday: number }) {
   return (
     <p className="mt-1 text-sm text-muted">
       {percentile !== null
-        ? `Mieux que ${Math.round(percentile * 100)} % des joueurs aujourd'hui`
+        ? t(`Mieux que ${Math.round(percentile * 100)} % des joueurs aujourd'hui`, `Better than ${Math.round(percentile * 100)}% of players today`)
         : playersLabel(playersToday)}
     </p>
   );
@@ -70,7 +71,7 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
 
   return (
     <div className="mt-5 rounded-xl border border-line bg-elevated p-4">
-      <p className="mb-3 text-xs uppercase tracking-wider text-muted">— Meilleurs mots possibles —</p>
+      <p className="mb-3 text-xs uppercase tracking-wider text-muted">{t("— Meilleurs mots possibles —", "— Best possible words —")}</p>
       <ol className="space-y-2">
         {top3.map((r, i) => <WordRow key={r.word} r={r} rank={i + 1} />)}
       </ol>
@@ -86,7 +87,7 @@ function TopWordsList({ words }: { words: SolverResult[] }) {
             onClick={() => setShowMore(v => !v)}
             className="mt-3 text-xs text-muted hover:text-fg underline underline-offset-2 transition-colors"
           >
-            {showMore ? "▲ Masquer" : `▼ Voir les ${next7.length} suivant${next7.length > 1 ? "s" : ""}`}
+            {showMore ? t("▲ Masquer", "▲ Hide") : t(`▼ Voir les ${next7.length} suivant${next7.length > 1 ? "s" : ""}`, `▼ Show ${next7.length} more`)}
           </button>
         </>
       )}
@@ -115,7 +116,7 @@ function EndOfGameFooter({
 
       <section className="mt-6" aria-labelledby="end-game-stats-title">
         <h2 id="end-game-stats-title" className="mb-4 text-sm font-semibold text-fg">
-          Mes statistiques
+          {t("Mes statistiques", "My statistics")}
         </h2>
         <StatsPanel />
       </section>
@@ -134,10 +135,10 @@ function EndOfGameFooter({
           />
         )}
         <Link
-          to="/entrainement"
+          to={t("/entrainement", "/practice")}
           className="text-sm font-medium text-muted underline-offset-4 transition-colors hover:text-fg hover:underline"
         >
-          S'entraîner →
+          {t("S'entraîner →", "Practice →")}
         </Link>
       </div>
     </div>
@@ -165,21 +166,21 @@ export default function DailyGame() {
         <button
           type="button"
           onClick={() => setModal("rules")}
-          aria-label="Voir les règles du jeu"
+          aria-label={t("Voir les règles du jeu", "View game rules")}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-elevated text-base font-bold text-muted transition-colors hover:border-primary/50 hover:text-fg"
         >
           ?
         </button>
 
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-primary">Défi du jour</h1>
+          <h1 className="text-2xl font-bold text-primary">{t("Défi du jour", "Daily challenge")}</h1>
           <span className="text-xs text-muted">{formatUTC(new Date())}</span>
         </div>
 
         <button
           type="button"
           onClick={() => setModal("stats")}
-          aria-label="Voir mes statistiques"
+          aria-label={t("Voir mes statistiques", "View my statistics")}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-elevated text-base text-muted transition-colors hover:border-primary/50 hover:text-fg"
         >
           📊
@@ -203,12 +204,12 @@ export default function DailyGame() {
             disabled={!dictReady}
             error={
               currentAttemptResult?.invalidReason === "not_in_dictionary"
-                ? "Mot non reconnu dans le dictionnaire."
+                ? t("Mot non reconnu dans le dictionnaire.", "Word not found in the dictionary.")
                 : undefined
             }
           />
           {!dictReady && (
-            <p className="mt-2 text-sm text-muted">Chargement du dictionnaire…</p>
+            <p className="mt-2 text-sm text-muted">{t("Chargement du dictionnaire…", "Loading dictionary…")}</p>
           )}
         </div>
       )}
@@ -222,7 +223,7 @@ export default function DailyGame() {
         return (
           <ScoreCard
             key={idx}
-            label={`— Essai ${idx + 1} —`}
+            label={t(`— Essai ${idx + 1} —`, `— Attempt ${idx + 1} —`)}
             score={score}
             total={attempt.total}
             bestPossibleScore={bestPossibleScore >= 0 ? bestPossibleScore : undefined}
@@ -236,11 +237,11 @@ export default function DailyGame() {
         <div className="flex flex-wrap gap-3">
           {phase.kind === "attempt_shown" && attempts.length < 3 && (
             <Button variant="secondary" onClick={retryRound}>
-              Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
+              {IS_ENGLISH ? `Try again (${3 - attempts.length} attempt${3 - attempts.length === 1 ? "" : "s"} left)` : `Réessayer (${3 - attempts.length} essai${3 - attempts.length > 1 ? "s" : ""} restant${3 - attempts.length > 1 ? "s" : ""})`}
             </Button>
           )}
           <Button variant="ghost" onClick={revealAnswers}>
-            Voir les réponses
+            {t("Voir les réponses", "Reveal answers")}
           </Button>
         </div>
       )}
@@ -249,19 +250,19 @@ export default function DailyGame() {
       {phase.kind === "completed" && (
         <Card className="mt-6">
           <p className="mb-4 text-xs uppercase tracking-wider text-muted">
-            — Partie terminée —
+            {t("— Partie terminée —", "— Game complete —")}
           </p>
 
           {bestWord !== null && bestPossibleScore >= 0 && (
             <p className="mb-3 text-fg">
-              Meilleur mot :{" "}
+              {t("Meilleur mot :", "Best word:")}{" "}
               <span className="font-bold text-primary">{bestWord}</span>{" "}
               <span className="text-muted">({bestPossibleScore} pts)</span>
             </p>
           )}
 
           <p className="text-sm text-muted">
-            Revenez demain — {formatUTC(tomorrow())}
+            {t("Revenez demain —", "Come back tomorrow —")} {formatUTC(tomorrow())}
           </p>
 
           <EndOfGameFooter
@@ -280,19 +281,19 @@ export default function DailyGame() {
       {phase.kind === "revealed" && (
         <Card className="mt-6">
           <p className="mb-4 text-xs uppercase tracking-wider text-muted">
-            — Réponses dévoilées —
+            {t("— Réponses dévoilées —", "— Answers revealed —")}
           </p>
 
           {bestWord !== null && bestPossibleScore >= 0 && (
             <p className="mb-3 text-fg">
-              Meilleur mot :{" "}
+              {t("Meilleur mot :", "Best word:")}{" "}
               <span className="font-bold text-primary">{bestWord}</span>{" "}
               <span className="text-muted">({bestPossibleScore} pts)</span>
             </p>
           )}
 
           <p className="text-sm text-muted">
-            Revenez demain — {formatUTC(tomorrow())}
+            {t("Revenez demain —", "Come back tomorrow —")} {formatUTC(tomorrow())}
           </p>
 
           <EndOfGameFooter

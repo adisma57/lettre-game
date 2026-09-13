@@ -1,3 +1,4 @@
+import { t } from "../../language";
 import { loadStats, isStatsStorageAvailable } from "../../services/stats";
 import { Card } from "../ui/Card";
 
@@ -34,10 +35,7 @@ export function StatsPanel() {
       <>
         <Card>
           <p className="text-sm leading-relaxed text-muted">
-            Votre navigateur bloque le stockage local — c'est normal en navigation privée ou avec
-            certaines protections anti-pistage. Les statistiques et la série ne peuvent donc pas
-            être conservées d'une visite à l'autre. Vous pouvez continuer à jouer chaque jour sans
-            problème, seul ce suivi n'est pas disponible.
+            {t("Votre navigateur bloque le stockage local — c'est normal en navigation privée ou avec certaines protections anti-pistage. Les statistiques et la série ne peuvent donc pas être conservées d'une visite à l'autre. Vous pouvez continuer à jouer chaque jour sans problème, seul ce suivi n'est pas disponible.", "Your browser is blocking local storage, which can happen in private browsing or with tracking protection. Your statistics and streak cannot be saved between visits. You can still play every day.")}
           </p>
         </Card>
       </>
@@ -57,16 +55,16 @@ export function StatsPanel() {
       <div className="flex flex-col gap-6">
         <Card>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Figure label="Parties jouées" value={String(stats.gamesPlayed)} />
-            <Figure label="Série actuelle" value={String(stats.currentStreak)} />
-            <Figure label="Meilleure série" value={String(stats.maxStreak)} />
-            <Figure label="Précision moyenne" value={accuracy} />
+            <Figure label={t("Parties jouées", "Games played")} value={String(stats.gamesPlayed)} />
+            <Figure label={t("Série actuelle", "Current streak")} value={String(stats.currentStreak)} />
+            <Figure label={t("Meilleure série", "Best streak")} value={String(stats.maxStreak)} />
+            <Figure label={t("Précision moyenne", "Average accuracy")} value={accuracy} />
           </div>
         </Card>
 
         <Card>
           <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted">
-            Répartition des essais
+            {t("Répartition des essais", "Attempts per game")}
           </h3>
           <div className="flex flex-col gap-3">
             {stats.attemptDistribution.map((count, i) => (
@@ -76,8 +74,7 @@ export function StatsPanel() {
         </Card>
 
         <p className="text-center text-sm text-muted">
-          {stats.perfectCount} partie{stats.perfectCount === 1 ? "" : "s"} parfaite
-          {stats.perfectCount === 1 ? "" : "s"}
+          {t(`${stats.perfectCount} partie${stats.perfectCount === 1 ? "" : "s"} parfaite${stats.perfectCount === 1 ? "" : "s"}`, `${stats.perfectCount} perfect game${stats.perfectCount === 1 ? "" : "s"}`)}
         </p>
       </div>
     </>

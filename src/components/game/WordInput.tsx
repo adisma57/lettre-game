@@ -1,3 +1,4 @@
+import { t } from "../../language";
 interface WordInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -15,9 +16,9 @@ export function WordInput({
   onSubmit,
   isValid,
   error,
-  placeholder = "Entrez un mot...",
+  placeholder = t("Entrez un mot...", "Enter a word..."),
   disabled = false,
-  submitLabel = "Valider",
+  submitLabel = t("Valider", "Submit"),
 }: WordInputProps) {
   const borderColor =
     isValid === true  ? "border-success" :

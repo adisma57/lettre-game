@@ -1,3 +1,4 @@
+import { t } from "../../language";
 import { useState, useEffect } from "react";
 import { buildShareText, type ShareInput } from "../../services/share";
 import { buildShareImage } from "../../services/shareImage";
@@ -19,7 +20,7 @@ function SharePreview({ input, onClose }: { input: ShareInput; onClose: () => vo
       url = URL.createObjectURL(file);
       setImage({ file, url });
     }).catch(() => {
-      if (active) setError("L’image n’a pas pu être créée. Tu peux toujours copier le texte.");
+      if (active) setError(t("L’image n’a pas pu être créée. Tu peux toujours copier le texte.", "The image could not be created. You can still copy the text."));
     });
     return () => {
       active = false;
@@ -41,7 +42,7 @@ function SharePreview({ input, onClose }: { input: ShareInput; onClose: () => vo
       await navigator.share({ files: [image.file], text });
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === "AbortError")) {
-        setStatus("Partage indisponible. Télécharge l’image et copie le texte ci-dessous.");
+        setStatus(t("Partage indisponible. Télécharge l’image et copie le texte ci-dessous.", "Sharing unavailable. Download the image and copy the text below."));
       }
     } finally {
       setSharing(false);
@@ -51,24 +52,24 @@ function SharePreview({ input, onClose }: { input: ShareInput; onClose: () => vo
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus("Texte copié !");
+      setStatus(t("Texte copié !", "Text copied!"));
     } catch {
-      setStatus("Sélectionne le texte ci-dessous pour le copier manuellement.");
+      setStatus(t("Sélectionne le texte ci-dessous pour le copier manuellement.", "Select the text below to copy it manually."));
     }
   }
 
   return (
-    <Modal title="Partager mon résultat" onClose={onClose}>
+    <Modal title={t("Partager mon résultat", "Share my result")} onClose={onClose}>
       {image ? (
-        <img src={image.url} alt={`Résultat Quadra du défi ${input.puzzleNumber} : ${input.score} points, série de ${input.currentStreak} jours.`} className="mx-auto w-full max-w-sm rounded-xl" />
-      ) : <p role="status" className="py-6 text-fg-sub">{error || "Préparation de ton image…"}</p>}
+        <img src={image.url} alt={t(`Résultat Quadra du défi ${input.puzzleNumber} : ${input.score} points, série de ${input.currentStreak} jours.`, `Quadra challenge ${input.puzzleNumber}: ${input.score} points, ${input.currentStreak}-day streak.`)} className="mx-auto w-full max-w-sm rounded-xl" />
+      ) : <p role="status" className="py-6 text-fg-sub">{error || t("Préparation de ton image…", "Preparing your image…")}</p>}
       <div className="mt-4 flex flex-wrap justify-center gap-3">
-        {canShareImage && <Button disabled={sharing} onClick={() => void share()}>{sharing ? "Partage…" : "Partager l’image"}</Button>}
-        {image && <a className="rounded-lg border border-line bg-elevated px-5 py-2 text-sm text-fg hover:border-primary/50" href={image.url} download={image.file.name}>Télécharger l’image</a>}
-        <Button variant="secondary" onClick={() => void copy()}>Copier le texte</Button>
+        {canShareImage && <Button disabled={sharing} onClick={() => void share()}>{sharing ? t("Partage…", "Sharing…") : t("Partager l’image", "Share image")}</Button>}
+        {image && <a className="rounded-lg border border-line bg-elevated px-5 py-2 text-sm text-fg hover:border-primary/50" href={image.url} download={image.file.name}>{t("Télécharger l’image", "Download image")}</a>}
+        <Button variant="secondary" onClick={() => void copy()}>{t("Copier le texte", "Copy text")}</Button>
       </div>
-      <p className="mt-3 text-sm text-fg-sub">Selon l’application choisie, le texte peut être à coller séparément.</p>
-      <textarea aria-label="Texte à partager" readOnly value={text} onFocus={(event) => event.target.select()} rows={7} className="mt-3 w-full resize-none rounded-lg border border-line bg-canvas p-3 text-sm text-fg" />
+      <p className="mt-3 text-sm text-fg-sub">{t("Selon l’application choisie, le texte peut être à coller séparément.", "Depending on the app, you may need to paste the caption separately.")}</p>
+      <textarea aria-label={t("Texte à partager", "Share text")} readOnly value={text} onFocus={(event) => event.target.select()} rows={7} className="mt-3 w-full resize-none rounded-lg border border-line bg-canvas p-3 text-sm text-fg" />
       <p role="status" className="mt-2 text-sm text-fg-sub">{status}</p>
     </Modal>
   );
@@ -99,9 +100,9 @@ export function ShareButton({ input }: { input: ShareInput }) {
     void (async () => {
       try {
         await navigator.clipboard.writeText(text);
-        setCopyStatus("Texte et hashtags copiés, prêts à coller !");
+        setCopyStatus(t("Texte et hashtags copiés, prêts à coller !", "Caption and hashtags copied, ready to paste!"));
       } catch {
-        setCopyStatus("Copie automatique refusée par le navigateur.");
+        setCopyStatus(t("Copie automatique refusée par le navigateur.", "Your browser blocked automatic copying."));
       }
     })();
     const file = prepared.file;
@@ -127,7 +128,7 @@ export function ShareButton({ input }: { input: ShareInput }) {
   return (
     <>
       <Button variant="secondary" disabled={sharing || prepared?.key !== key} onClick={() => void shareDirectly()}>
-        {prepared?.key !== key ? "Préparation du partage…" : sharing ? "Partage…" : "Partager"}
+        {prepared?.key !== key ? t("Préparation du partage…", "Preparing to share…") : sharing ? t("Partage…", "Sharing…") : t("Partager", "Share")}
       </Button>
       {copyStatus && <p role="status" className="mt-2 text-sm text-fg-sub">{copyStatus}</p>}
       {snapshot && <SharePreview input={snapshot} onClose={() => setSnapshot(null)} />}

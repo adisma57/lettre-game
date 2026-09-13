@@ -1,3 +1,4 @@
+import { t } from "./language";
 import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
 import DailyGame from "./pages/DailyGame";
@@ -9,7 +10,7 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true,          element: <DailyGame /> },
-      { path: "entrainement", element: <Training />  },
+      { path: t("entrainement", "practice"), element: <Training />  },
     ],
   },
 ]);

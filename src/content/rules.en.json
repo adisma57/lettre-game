@@ -1,0 +1,26 @@
+{
+  "title": "Game rules",
+  "sections": [
+    {"id":"objective","title":"The goal","body":"Each round gives you four letters. Find an English word containing those letters to earn as many points as possible. Their order and the letters between them affect your score."},
+    {"id":"valid-words","title":"Accepted words","body":"Words must be in the English game dictionary. It includes many inflected forms and both British and American spellings. Only words of at least two letters are accepted; spaces, hyphens and apostrophes are excluded. A rejected word does not use an attempt."},
+    {"id":"scoring","title":"Scoring","body":"Your score combines three elements:","formula":"score = (draw letters used × 3) + order bonus − insertions","items":[
+      {"label":"Draw letter used","points":"+3 pts","description":"Each draw letter used in your word earns three points. Duplicate letters in the draw count separately."},
+      {"label":"Order bonus","points":"+3 pts","description":"If the used draw letters appear in the same order as in the draw, you earn three extra points."},
+      {"label":"Insertion","points":"−1 pt","description":"Each extra letter between the first and last matched draw letters costs one point. Letters outside this span do not affect the score."}
+    ],"examples":[
+      {"draw":["G","A","M","E"],"word":"GAME","score":15,"note":"4 letters × 3 + 3 order bonus − 0 insertions = 15 points"},
+      {"draw":["P","L","N","T"],"word":"PLANT","score":14,"note":"4 letters × 3 + 3 order bonus − 1 insertion (A) = 14 points"},
+      {"draw":["S","T","R","M"],"word":"STORM","score":14,"note":"4 letters × 3 + 3 order bonus − 1 insertion (O) = 14 points"}
+    ]},
+    {"id":"coloring","title":"Letter colours","body":"After each attempt, colours show how your word was scored:","colors":[
+      {"role":"ordered","label":"Underlined orange","description":"A draw letter in the correct order: earns points and contributes to the order bonus."},
+      {"role":"unordered","label":"Underlined muted orange","description":"A draw letter used out of order: earns points without the order bonus."},
+      {"role":"insert","label":"Beige","description":"An extra letter inside the matched span: costs one point."},
+      {"role":"unused","label":"Grey","description":"A letter outside the matched span: does not affect the score."}
+    ]},
+    {"id":"modes","title":"Game modes","body":"Choose between two modes:","modes":[
+      {"name":"Daily challenge","route":"/","description":"The same draw for everyone on the English site, refreshed at midnight in Paris (Europe/Paris). You have three attempts. After each attempt, you see the best possible score, but not the answer. Your English streak is separate from your French streak."},
+      {"name":"Practice","route":"/practice","description":"Unlimited random draws. After submitting a word, reveal the three highest-scoring answers to explore strategies."}
+    ]}
+  ]
+}

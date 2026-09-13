@@ -1,11 +1,15 @@
 import type { Draw } from "./types.js";
 import { getTodayKey } from "./dayKey.js";
+import { IS_ENGLISH } from "../language.js";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-// These letters are rare in French; they receive a lower weight so the draw
-// pool produces playable hands more often.
-const RARE_LETTERS = new Set(["J", "K", "Q", "W", "X", "Y", "Z", "H"]);
+// Two-level game weighting, not a literal corpus-frequency distribution.
+// English: K joins J/Q/X/Z; H/W/Y are not rare (Norvig, Mayzner revisited).
+// Keep the French pool unchanged to preserve already published daily draws.
+const RARE_LETTERS = new Set(IS_ENGLISH
+  ? ["J", "K", "Q", "X", "Z"]
+  : ["J", "K", "Q", "W", "X", "Y", "Z", "H"]);
 
 const LETTER_WEIGHT: Record<string, number> = Object.fromEntries(
   ALPHABET.map((l) => [l, RARE_LETTERS.has(l) ? 1 : 4])

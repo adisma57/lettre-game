@@ -1,3 +1,4 @@
+import { GAME_LANGUAGE, IS_ENGLISH, t } from "../src/language.js";
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
@@ -28,9 +29,16 @@ app.use(
   "*",
   cors({
     origin: corsOrigins(),
-    allowHeaders: ["Content-Type"],
+    allowHeaders: ["Content-Type", "X-Game-Language"],
   }),
 );
+
+app.use("*", async (c, next) => {
+  const language = c.req.header("X-Game-Language");
+  if (language && language !== GAME_LANGUAGE) return c.json({ error: "Game language mismatch" }, 409);
+  if (IS_ENGLISH && !language && c.req.path !== "/api/health") return c.json({ error: "Game language required" }, 400);
+  await next();
+});
 
 let schemaReady: Promise<void> | undefined;
 /** Not a global middleware: on Vercel the pathname may not be `/api/health`. */
@@ -40,11 +48,11 @@ const withDb: MiddlewareHandler = async (_c, next) => {
   await next();
 };
 
-app.get("/health", (c) => c.json({ ok: true, t: new Date().toISOString() }));
+app.get("/health", (c) => c.json({ ok: true, language: GAME_LANGUAGE, t: new Date().toISOString() }));
 
 app.onError((err, c) => {
   console.error("[server error]", err);
-  return c.json({ error: "Erreur serveur." }, 500);
+  return c.json({ error: t("Erreur serveur.", "Server error.") }, 500);
 });
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -57,7 +65,7 @@ function invalidDate(date: string): boolean {
 
 app.post("/daily/:date/attempt", withDb, async (c) => {
   const date = c.req.param("date");
-  if (invalidDate(date)) return c.json({ error: "Date invalide." }, 400);
+  if (invalidDate(date)) return c.json({ error: t("Date invalide.", "Invalid date.") }, 400);
 
   const body = (await c.req.json().catch(() => ({}))) as {
     deviceId?: string;
@@ -66,13 +74,13 @@ app.post("/daily/:date/attempt", withDb, async (c) => {
   };
 
   if (typeof body.deviceId !== "string" || !UUID_RE.test(body.deviceId)) {
-    return c.json({ error: "Identifiant d'appareil invalide." }, 400);
+    return c.json({ error: t("Identifiant d'appareil invalide.", "Invalid device identifier.") }, 400);
   }
   if (typeof body.attemptNum !== "number" || body.attemptNum < 1 || body.attemptNum > 3) {
-    return c.json({ error: "Numéro d'essai hors limites." }, 400);
+    return c.json({ error: t("Numéro d'essai hors limites.", "Attempt number out of range.") }, 400);
   }
   if (typeof body.score !== "number" || body.score < 0) {
-    return c.json({ error: "Score invalide." }, 400);
+    return c.json({ error: t("Score invalide.", "Invalid score.") }, 400);
   }
 
   const bestPossible = await resolveBestPossible(date);

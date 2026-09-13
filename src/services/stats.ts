@@ -1,6 +1,7 @@
+import { storageKey } from "../language";
 import { daysBetween, isDayKey } from "../engine/dayKey";
 
-export const STATS_STORAGE_KEY = "quadra:stats";
+export const STATS_STORAGE_KEY = storageKey("quadra:stats");
 
 /** How many days a spent joker stays unavailable. */
 const JOKER_COOLDOWN_DAYS = 7;

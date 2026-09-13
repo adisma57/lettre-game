@@ -1,3 +1,4 @@
+import { storageKey } from "../language";
 import type { Draw, ScoreResult } from "../engine/types";
 import type { SolverResult } from "../engine/solver";
 import { getTodayKey } from "../engine/dayKey";
@@ -24,7 +25,7 @@ export type DailyState = {
   statsApplied: boolean;        // stops one game being counted twice
 };
 
-const STORAGE_KEY = "quadra:daily";
+const STORAGE_KEY = storageKey("quadra:daily");
 
 /**
  * Loads today's game state from localStorage.

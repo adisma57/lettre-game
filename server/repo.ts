@@ -1,3 +1,4 @@
+import { IS_ENGLISH } from "../src/language.js";
 import { neon, neonConfig } from "@neondatabase/serverless";
 
 /** Évite de bloquer une invocation Vercel jusqu'au maxDuration si Neon ne répond pas. */
@@ -16,18 +17,20 @@ neonConfig.fetchFunction = (
   return baseFetch(input, { ...init, signal });
 };
 
+const databaseVariable = IS_ENGLISH ? "EN_DATABASE_URL" : "DATABASE_URL";
+
 const isDeployed =
   process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 
 function isMemoryBackend(): boolean {
-  return !process.env.DATABASE_URL && !isDeployed;
+  return !process.env[databaseVariable] && !isDeployed;
 }
 
 function requireDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL;
+  const url = process.env[databaseVariable];
   if (!url) {
     throw new Error(
-      "DATABASE_URL manquant. En production / sur Vercel, configure la variable d'environnement.",
+      `${databaseVariable} missing. Configure the database for this game language.`,
     );
   }
   return url;

@@ -1,5 +1,7 @@
+import { t, IS_ENGLISH } from "../../language";
 import { Link } from "react-router-dom";
 import rulesData from "../../content/rules.json";
+import englishRules from "../../content/rules.en.json";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
@@ -79,7 +81,7 @@ function Examples({ examples }: { examples: Example[] }) {
   return (
     <div className="mt-5 flex flex-col gap-3">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-        Exemples
+        {t("Exemples", "Examples")}
       </h3>
       {examples.map((ex) => (
         <div key={ex.word} className="rounded-lg bg-elevated p-4">
@@ -142,11 +144,11 @@ function GameModes({ modes }: { modes: GameMode[] }) {
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-const rules = rulesData as RulesConfig;
+const rules = (IS_ENGLISH ? englishRules : rulesData) as RulesConfig;
 
 export function RulesModal({ onClose }: { onClose: () => void }) {
   return (
-    <Modal title="Règles" onClose={onClose}>
+    <Modal title={t("Règles", "Rules")} onClose={onClose}>
       <div className="flex flex-col gap-6">
         {rules.sections.map((section) => (
           <Card key={section.id}>

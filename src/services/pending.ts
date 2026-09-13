@@ -1,4 +1,5 @@
-export const PENDING_STORAGE_KEY = "quadra:pending";
+import { storageKey } from "../language";
+export const PENDING_STORAGE_KEY = storageKey("quadra:pending");
 
 export type PendingAttempt = { date: string; attemptNum: number; score: number };
 

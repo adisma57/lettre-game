@@ -1,3 +1,4 @@
+import { t } from "../../language";
 import { useState } from "react";
 import type { SolverResult } from "../../engine/solver";
 
@@ -11,7 +12,7 @@ interface SolverResultsListProps {
 
 export function SolverResultsList({
   results,
-  title = "Meilleurs mots possibles",
+  title = t("Meilleurs mots possibles", "Best possible words"),
   collapsible = true,
 }: SolverResultsListProps) {
   const [open, setOpen] = useState(false);
@@ -25,7 +26,7 @@ export function SolverResultsList({
           onClick={() => setOpen((v) => !v)}
           className="text-sm text-muted transition-colors hover:text-fg"
         >
-          {open ? "▲ Masquer le top 3" : "▼ Voir le top 3"}
+          {open ? t("▲ Masquer le top 3", "▲ Hide top 3") : t("▼ Voir le top 3", "▼ Show top 3")}
         </button>
       )}
 

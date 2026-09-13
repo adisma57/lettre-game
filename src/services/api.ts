@@ -1,3 +1,4 @@
+import { GAME_LANGUAGE } from "../language";
 import type { Draw } from "../engine/types";
 import type { SolverResult } from "../engine/solver";
 
@@ -16,7 +17,7 @@ async function postWithRetry<T>(path: string, body: unknown): Promise<T | null> 
     try {
       const res = await fetch(`${BASE}${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Game-Language": GAME_LANGUAGE },
         body: JSON.stringify(body),
       });
       if (res.ok) return (await res.json()) as T;
@@ -61,7 +62,7 @@ export type TrainingRound = { draw: Draw; top3: SolverResult[] };
 
 export async function fetchTrainingRound(): Promise<TrainingRound | null> {
   try {
-    const res = await fetch(`${BASE}/api/training`);
+    const res = await fetch(`${BASE}/api/training`, { headers: { "X-Game-Language": GAME_LANGUAGE } });
     if (!res.ok) return null;
     return (await res.json()) as TrainingRound;
   } catch {

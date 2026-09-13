@@ -1,3 +1,4 @@
+import { t } from "../language";
 import { SITE_URL } from "../config";
 import type { ShareInput } from "./share";
 
@@ -23,8 +24,8 @@ export async function buildShareImage(input: ShareInput): Promise<File> {
   };
   // Crop the transparent space to the right of the existing wordmark.
   ctx.drawImage(logo, 0, 0, 520, 160, 306, 60, 468, 144);
-  text("4 lettres · 3 essais · un défi chaque jour", 250, 31, "#c0b8ac");
-  text(`DÉFI #${input.puzzleNumber}`, 336, 27, "#f97316", true);
+  text(t("4 lettres · 3 essais · un défi chaque jour", "4 letters · 3 attempts · a new daily challenge"), 250, 31, "#c0b8ac");
+  text(t(`DÉFI #${input.puzzleNumber}`, `CHALLENGE #${input.puzzleNumber}`), 336, 27, "#f97316", true);
   text(input.bestPossible === null ? `${input.score} pts` : `${input.score} / ${input.bestPossible}`, 455, 100, "#f2ede6", true);
   // Show the public draw in its original order, independent of the result.
   input.draw.forEach((letter, i) => {
@@ -39,9 +40,9 @@ export async function buildShareImage(input: ShareInput): Promise<File> {
     ctx.fillText(letter, 279 + i * 174, 581, 120);
     ctx.textBaseline = "alphabetic";
   });
-  text(`Série en cours : ${input.currentStreak} jour${input.currentStreak === 1 ? "" : "s"}`, 778, 40, "#f2ede6", true);
-  if (input.percentile !== null) text(`Mieux que ${Math.round(input.percentile * 100)} % des joueurs`, 824, 26, "#c0b8ac");
-  text("Tu fais mieux avec les mêmes quatre lettres ?", 937, 32, "#f2ede6", true);
+  text(t(`Série en cours : ${input.currentStreak} jour${input.currentStreak === 1 ? "" : "s"}`, `Current streak: ${input.currentStreak} day${input.currentStreak === 1 ? "" : "s"}`), 778, 40, "#f2ede6", true);
+  if (input.percentile !== null) text(t(`Mieux que ${Math.round(input.percentile * 100)} % des joueurs`, `Better than ${Math.round(input.percentile * 100)}% of players`), 824, 26, "#c0b8ac");
+  text(t("Tu fais mieux avec les mêmes quatre lettres ?", "Same four letters. Can you beat my score?"), 937, 32, "#f2ede6", true);
   text(new URL(SITE_URL).host, 1002, 34, "#f97316", true);
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Impossible d’exporter l’image.")), "image/png");
