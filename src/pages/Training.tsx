@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useTraining } from "../hooks/useTraining";
 import { DrawDisplay } from "../components/game/DrawDisplay";
 import { WordInput } from "../components/game/WordInput";
@@ -6,6 +7,12 @@ import { SolverResultsList } from "../components/game/SolverResults";
 import { Button } from "../components/ui/Button";
 
 export default function Training() {
+  const navigate = useNavigate();
+  const backButton = (
+    <Button variant="secondary" className="mb-6" onClick={() => navigate("/")}>
+      ← Retour au défi du jour
+    </Button>
+  );
   const {
     draw, loading, phase,
     inputWord, setInputWord, isInputValid,
@@ -15,11 +22,17 @@ export default function Training() {
   } = useTraining();
 
   if (loading) {
-    return <p className="text-center text-muted">Chargement du tirage…</p>;
+    return (
+      <div className="mx-auto max-w-lg">
+        {backButton}
+        <p className="text-center text-muted">Chargement du tirage…</p>
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-lg">
+      {backButton}
 
       {/* Header */}
       <div className="mb-8">
