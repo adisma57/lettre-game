@@ -39,6 +39,8 @@ describe("buildShareText", () => {
     expect(buildShareText(base)).toBe(
       "Quadra #142 — 21/24 🟧🟧🟧⬜ ✅\n" +
       "Série 7 🔥 · mieux que 68 % des joueurs\n" +
+      "\nTu fais mieux avec les mêmes quatre lettres ?\n" +
+      "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour\n" +
       "https://quadra-mots.fr",
     );
   });
@@ -69,6 +71,8 @@ describe("buildShareText", () => {
     expect(buildShareText({ ...base, bestPossible: null, percentile: null })).toBe(
       "Quadra #142 — 21 pts 🟧🟧🟧⬜ ✅\n" +
       "Série 7 🔥\n" +
+      "\nTu fais mieux avec les mêmes quatre lettres ?\n" +
+      "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour\n" +
       "https://quadra-mots.fr",
     );
   });
@@ -77,6 +81,8 @@ describe("buildShareText", () => {
     expect(buildShareText({ ...base, score: 0, usedLetters: [] })).toBe(
       "Quadra #142 — 0/24 ⬜⬜⬜⬜ ✅\n" +
       "Série 7 🔥 · mieux que 68 % des joueurs\n" +
+      "\nTu fais mieux avec les mêmes quatre lettres ?\n" +
+      "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour\n" +
       "https://quadra-mots.fr",
     );
   });

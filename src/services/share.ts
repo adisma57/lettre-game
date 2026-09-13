@@ -50,6 +50,9 @@ export function buildShareText(input: ShareInput): string {
   return [
     `Quadra #${input.puzzleNumber} — ${scoreLabel} ${squares}${bonus}`,
     `${streak}${rank}`,
+    "",
+    "Tu fais mieux avec les mêmes quatre lettres ?",
+    "#QuadraMots #JeuxDeLettres #JeuxDeMots #WordGames #DefiDuJour",
     SITE_URL,
   ].join("\n");
 }
