@@ -11,7 +11,7 @@ import {
   loadDailyState, saveDailyState, createFreshState,
   type AttemptRecord, type DailyState,
 } from "../services/dailyState";
-import { submitAttempt, fetchFinish } from "../services/api";
+import { submitAttempt, fetchFinish, prepareDaily } from "../services/api";
 import { getDeviceId } from "../services/deviceId";
 import { loadStats, saveStats, applyResult } from "../services/stats";
 import { enqueuePending, loadPending, clearPending } from "../services/pending";
@@ -41,6 +41,7 @@ export type GameState = {
   revealAnswers: () => void;
   currentAttemptResult: RoundResult | null;
   dictReady: boolean;
+  isLoading: boolean;
 };
 
 export function useDailyGame(): GameState {
@@ -60,6 +61,15 @@ export function useDailyGame(): GameState {
   const [isInputValid, setIsInputValid] = useState<boolean | null>(null);
   const [currentAttemptResult, setCurrentAttemptResult] = useState<RoundResult | null>(null);
   const [dictReady, setDictReady] = useState(isDictionaryReady());
+  const [isLoading, setIsLoading] = useState(false);
+  const requestInFlight = useRef(false);
+  const preparedDay = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (state.completed || preparedDay.current === today) return;
+    preparedDay.current = today;
+    void prepareDaily(today);
+  }, [today, state.completed]);
 
   // Kicks off the dictionary load off the critical path. Wrapped in an async
   // IIFE (rather than `void loadMainDictionary().then(...)` directly) for the
@@ -155,7 +165,7 @@ export function useDailyGame(): GameState {
   );
 
   const submitWord = useCallback(() => {
-    if (!dictReady) return; // guard: mainValidator would wrongly reject every word until loaded
+    if (!dictReady || requestInFlight.current || phase.kind !== "playing") return;
 
     const result = evaluateRound(state.draw, inputWord, mainValidator);
 
@@ -176,39 +186,50 @@ export function useDailyGame(): GameState {
 
     setCurrentAttemptResult(result);
 
+    requestInFlight.current = true;
+    setIsLoading(true);
     void (async () => {
-      const res = await submitAttempt({
-        date: state.date, deviceId, attemptNum, score: result.total,
-      });
-      if (res === null) {
-        enqueuePending({ date: state.date, attemptNum, score: result.total });
+      try {
+        const res = await submitAttempt({
+          date: state.date, deviceId, attemptNum, score: result.total,
+        });
+        if (res === null) {
+          enqueuePending({ date: state.date, attemptNum, score: result.total });
+        }
+
+        const bestPossible = res?.bestPossible ?? state.bestPossibleScore;
+        const bestScore = Math.max(...attempts.map((a) => a.total));
+        const won = bestPossible >= 0 && bestScore >= bestPossible;
+        const over = won || attemptNum >= MAX_ATTEMPTS;
+
+        const next: DailyState = {
+          ...state,
+          attempts,
+          bestPossibleScore: bestPossible,
+          completed: over,
+        };
+        setState(next);
+        saveDailyState(next);
+        setPhase(over ? { kind: "completed" } : { kind: "attempt_shown" });
+        if (over) await finish(next, bestScore, attemptNum);
+      } finally {
+        requestInFlight.current = false;
+        setIsLoading(false);
       }
-
-      const bestPossible = res?.bestPossible ?? state.bestPossibleScore;
-      const bestScore = Math.max(...attempts.map((a) => a.total));
-      const won = bestPossible >= 0 && bestScore >= bestPossible;
-      const over = won || attemptNum >= MAX_ATTEMPTS;
-
-      const next: DailyState = {
-        ...state,
-        attempts,
-        bestPossibleScore: bestPossible,
-        completed: over,
-      };
-      setState(next);
-      saveDailyState(next);
-      setPhase(over ? { kind: "completed" } : { kind: "attempt_shown" });
-      if (over) await finish(next, bestScore, attemptNum);
     })();
-  }, [state, inputWord, finish, dictReady]);
+  }, [state, inputWord, finish, dictReady, phase.kind]);
 
   const retryRound = useCallback(() => {
+    if (requestInFlight.current) return;
     setInputWord("");
     setCurrentAttemptResult(null);
     setPhase({ kind: "playing" });
   }, [setInputWord]);
 
   const revealAnswers = useCallback(() => {
+    if (requestInFlight.current || state.completed) return;
+    requestInFlight.current = true;
+    setIsLoading(true);
     const next: DailyState = { ...state, revealed: true, completed: true };
     setState(next);
     saveDailyState(next);
@@ -216,7 +237,10 @@ export function useDailyGame(): GameState {
     const bestScore = state.attempts.length
       ? Math.max(...state.attempts.map((a) => a.total))
       : 0;
-    void finish(next, bestScore, state.attempts.length);
+    void finish(next, bestScore, state.attempts.length).finally(() => {
+      requestInFlight.current = false;
+      setIsLoading(false);
+    });
   }, [state, finish]);
 
   return {
@@ -230,6 +254,6 @@ export function useDailyGame(): GameState {
     playersToday: state.playersToday,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, revealAnswers, currentAttemptResult,
-    dictReady,
+    dictReady, isLoading,
   };
 }

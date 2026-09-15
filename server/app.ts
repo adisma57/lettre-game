@@ -63,6 +63,16 @@ function invalidDate(date: string): boolean {
   return !DATE_RE.test(date) || date > getTodayKey();
 }
 
+// Prepare only today's puzzle. Never expose solutions or record a player.
+app.get("/daily/:date/prepare", async (c, next) => {
+  if (c.req.param("date") !== getTodayKey()) return c.json({ error: "Invalid date" }, 400);
+  await next();
+}, withDb, async (c) => {
+  await resolveBestPossible(c.req.param("date"));
+  c.header("Cache-Control", "no-store");
+  return c.json({ ready: true });
+});
+
 app.post("/daily/:date/attempt", withDb, async (c) => {
   const date = c.req.param("date");
   if (invalidDate(date)) return c.json({ error: t("Date invalide.", "Invalid date.") }, 400);

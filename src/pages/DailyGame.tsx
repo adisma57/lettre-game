@@ -153,7 +153,7 @@ export default function DailyGame() {
     bestPossibleScore, bestWord, topWords, percentile, playersToday,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, revealAnswers, currentAttemptResult,
-    dictReady,
+    dictReady, isLoading,
   } = useDailyGame();
 
   const [modal, setModal] = useState<"rules" | "stats" | null>(null);
@@ -201,7 +201,8 @@ export default function DailyGame() {
             onChange={setInputWord}
             onSubmit={submitWord}
             isValid={isInputValid}
-            disabled={!dictReady}
+            disabled={!dictReady || isLoading}
+            submitLabel={isLoading ? t("Validation…", "Checking…") : undefined}
             error={
               currentAttemptResult?.invalidReason === "not_in_dictionary"
                 ? t("Mot non reconnu dans le dictionnaire.", "Word not found in the dictionary.")
@@ -215,6 +216,14 @@ export default function DailyGame() {
       )}
 
       {/* Attempt history */}
+      {isLoading && (
+        <p role="status" className="mb-5 flex items-center gap-2 text-sm text-muted">
+          <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary motion-reduce:animate-none" />
+          {phase.kind === "playing"
+            ? t("Validation en cours… Le premier envoi peut prendre quelques secondes.", "Checking your word… The first submission can take a few seconds.")
+            : t("Chargement des résultats…", "Loading results…")}
+        </p>
+      )}
       {attempts.map((attempt, idx) => {
         const isLast = idx === attempts.length - 1;
         const score = isLast
@@ -236,11 +245,11 @@ export default function DailyGame() {
       {(phase.kind === "playing" || phase.kind === "attempt_shown") && (
         <div className="flex flex-wrap gap-3">
           {phase.kind === "attempt_shown" && attempts.length < 3 && (
-            <Button variant="secondary" onClick={retryRound}>
+            <Button variant="secondary" onClick={retryRound} disabled={isLoading}>
               {IS_ENGLISH ? `Try again (${3 - attempts.length} attempt${3 - attempts.length === 1 ? "" : "s"} left)` : `Réessayer (${3 - attempts.length} essai${3 - attempts.length > 1 ? "s" : ""} restant${3 - attempts.length > 1 ? "s" : ""})`}
             </Button>
           )}
-          <Button variant="ghost" onClick={revealAnswers}>
+          <Button variant="ghost" onClick={revealAnswers} disabled={isLoading}>
             {t("Voir les réponses", "Reveal answers")}
           </Button>
         </div>
