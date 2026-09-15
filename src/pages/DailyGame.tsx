@@ -180,6 +180,7 @@ export default function DailyGame() {
         <button
           type="button"
           onClick={() => setModal("stats")}
+          disabled={isLoading}
           aria-label={t("Voir mes statistiques", "View my statistics")}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-elevated text-base text-muted transition-colors hover:border-primary/50 hover:text-fg"
         >
@@ -188,7 +189,7 @@ export default function DailyGame() {
       </div>
 
       {modal === "rules" && <RulesModal onClose={() => setModal(null)} />}
-      {modal === "stats" && <StatsModal onClose={() => setModal(null)} />}
+      {modal === "stats" && !isLoading && <StatsModal onClose={() => setModal(null)} />}
 
       {/* Draw tiles */}
       <DrawDisplay letters={draw} className="mb-8" />
@@ -256,7 +257,7 @@ export default function DailyGame() {
       )}
 
       {/* Completed summary */}
-      {phase.kind === "completed" && (
+      {phase.kind === "completed" && !isLoading && (
         <Card className="mt-6">
           <p className="mb-4 text-xs uppercase tracking-wider text-muted">
             {t("— Partie terminée —", "— Game complete —")}
@@ -287,7 +288,7 @@ export default function DailyGame() {
       )}
 
       {/* Revealed summary */}
-      {phase.kind === "revealed" && (
+      {phase.kind === "revealed" && !isLoading && (
         <Card className="mt-6">
           <p className="mb-4 text-xs uppercase tracking-wider text-muted">
             {t("— Réponses dévoilées —", "— Answers revealed —")}
