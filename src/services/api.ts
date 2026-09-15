@@ -34,6 +34,15 @@ async function postWithRetry<T>(path: string, body: unknown): Promise<T | null> 
 
 export type AttemptResponse = { bestPossible: number };
 
+/** Best-effort warmup; no answers or player data are transferred. */
+export async function prepareDaily(date: string): Promise<void> {
+  try {
+    await fetch(`${BASE}/api/daily/${date}/prepare`, {
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch { /* Submission still works if preparation is unavailable. */ }
+}
+
 /** Records an attempt and returns the day's denominator. null when unavailable. */
 export function submitAttempt(payload: {
   date: string;

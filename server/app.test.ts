@@ -1,6 +1,19 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { app } from "./app.js";
 import { resetMemoryStore } from "./repo.js";
+import { getTodayKey } from "../src/engine/dayKey.js";
+
+it("prepares today without revealing answers or recording a player", async () => {
+  resetMemoryStore();
+  const date = getTodayKey();
+  const response = await app.request(`/api/daily/${date}/prepare`);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ ready: true });
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  const result = await finish(date);
+  expect((await result.json() as { playersToday: number }).playersToday).toBe(0);
+  expect((await app.request("/api/daily/2000-01-01/prepare")).status).toBe(400);
+});
 
 type AttemptResponse = { bestPossible: number };
 type FinishResponse = {

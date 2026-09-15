@@ -152,7 +152,7 @@ export default function DailyGame() {
     bestPossibleScore, bestWord, topWords, percentile, playersToday,
     inputWord, setInputWord, isInputValid,
     submitWord, retryRound, revealAnswers, currentAttemptResult,
-    dictReady,
+    dictReady, isLoading,
   } = useDailyGame();
 
   const [modal, setModal] = useState<"rules" | "stats" | null>(null);
@@ -200,7 +200,8 @@ export default function DailyGame() {
             onChange={setInputWord}
             onSubmit={submitWord}
             isValid={isInputValid}
-            disabled={!dictReady}
+            disabled={!dictReady || isLoading}
+            submitLabel={isLoading ? "Validation…" : undefined}
             error={
               currentAttemptResult?.invalidReason === "not_in_dictionary"
                 ? "Mot non reconnu dans le dictionnaire."
@@ -213,6 +214,14 @@ export default function DailyGame() {
         </div>
       )}
 
+      {isLoading && (
+        <p role="status" className="mb-5 flex items-center gap-2 text-sm text-muted">
+          <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary motion-reduce:animate-none" />
+          {phase.kind === "playing"
+            ? "Validation en cours… Le premier envoi peut prendre quelques secondes."
+            : "Chargement des résultats…"}
+        </p>
+      )}
       {/* Attempt history */}
       {attempts.map((attempt, idx) => {
         const isLast = idx === attempts.length - 1;
@@ -235,11 +244,11 @@ export default function DailyGame() {
       {(phase.kind === "playing" || phase.kind === "attempt_shown") && (
         <div className="flex flex-wrap gap-3">
           {phase.kind === "attempt_shown" && attempts.length < 3 && (
-            <Button variant="secondary" onClick={retryRound}>
+            <Button variant="secondary" onClick={retryRound} disabled={isLoading}>
               Réessayer ({3 - attempts.length} essai{3 - attempts.length > 1 ? "s" : ""} restant{3 - attempts.length > 1 ? "s" : ""})
             </Button>
           )}
-          <Button variant="ghost" onClick={revealAnswers}>
+          <Button variant="ghost" onClick={revealAnswers} disabled={isLoading}>
             Voir les réponses
           </Button>
         </div>
