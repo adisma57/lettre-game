@@ -26,6 +26,7 @@ export default defineConfig({
       workbox: {
         // The dictionary chunk is far above the 2 MB default.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        globIgnores: ["marketing/**"],
       },
     }),
   ],
